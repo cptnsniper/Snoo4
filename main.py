@@ -77,41 +77,41 @@ async def initialize_data():
 
 	data_channel = snoo.get_channel(913524327775895563)
 	async for message in data_channel.history (limit = 1):
-		await message.attachments[0].save("user_karma.json")
+		await message.attachments[0].save("Data Files/user_karma.json")
 
-	f = open('user_karma.json')
+	f = open('Data Files/user_karma.json')
 
 	str_karma_time = json.load(f)
 
 	friend_channel = snoo.get_channel(913524431131918406)
 	async for message in friend_channel.history (limit = 1):
-		await message.attachments[0].save("user_friendship.json")
+		await message.attachments[0].save("Data Files/user_friendship.json")
 
-	f = open('user_friendship.json')
+	f = open('Data Files/user_friendship.json')
 
 	str_friendship = json.load(f)
 
 	messages_channel = snoo.get_channel(913524223870398534)
 	async for message in messages_channel.history (limit = 1):
-		await message.attachments[0].save("channel_messages.json")
+		await message.attachments[0].save("Data Files/channel_messages.json")
 
-	f = open('channel_messages.json')
+	f = open('Data Files/channel_messages.json')
 
 	str_messages = json.load(f)
 
 	songs_channel = snoo.get_channel(922592622248341505)
 	async for message in songs_channel.history (limit = 1):
-		await message.attachments[0].save("top_songs.json")
+		await message.attachments[0].save("Data Files/top_songs.json")
 
-	f = open('top_songs.json')
+	f = open('Data Files/top_songs.json')
 
 	str_top_songs = json.load(f)
 
 	vc_channel = snoo.get_channel(917185952978468874)
 	async for message in vc_channel.history (limit = 1):
-		await message.attachments[0].save("user_vc_time.json")
+		await message.attachments[0].save("Data Files/user_vc_time.json")
 
-	f = open('user_vc_time.json')
+	f = open('Data Files/user_vc_time.json')
 
 	str_vc_time = json.load(f)
 
@@ -823,46 +823,46 @@ async def new_save():
 	async for message in data_channel.history (limit = 1):
 		await message.delete()
 
-	with open("user_karma.json", "w") as outfile:
+	with open("Data Files/user_karma.json", "w") as outfile:
 		json.dump(user_karma, outfile)
 
-	await data_channel.send(file=discord.File("user_karma.json"))
+	await data_channel.send(file=discord.File("Data Files/user_karma.json"))
 
 	friend_channel = snoo.get_channel(913524431131918406)
 	async for message in friend_channel.history (limit = 1):
 		await message.delete()
 
-	with open("user_friendship.json", "w") as outfile:
+	with open("Data Files/user_friendship.json", "w") as outfile:
 		json.dump(user_friendship, outfile)
 
-	await friend_channel.send(file=discord.File("user_friendship.json"))
+	await friend_channel.send(file=discord.File("Data Files/user_friendship.json"))
 
 	messages_channel = snoo.get_channel(913524223870398534)
 	async for message in messages_channel.history (limit = 1):
 		await message.delete()
 
-	with open("channel_messages.json", "w") as outfile:
+	with open("Data Files/channel_messages.json", "w") as outfile:
 		json.dump(channel_messages, outfile)
 
-	await messages_channel.send(file=discord.File("channel_messages.json"))
+	await messages_channel.send(file=discord.File("Data Files/channel_messages.json"))
 
 	vc_channel = snoo.get_channel(917185952978468874)
 	async for message in vc_channel.history (limit = 1):
 		await message.delete()
 
-	with open("user_vc_time.json", "w") as outfile:
+	with open("Data Files/user_vc_time.json", "w") as outfile:
 		json.dump(user_vc_time, outfile)
 
-	await vc_channel.send(file=discord.File("user_vc_time.json"))
+	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
 
 	songs_channel = snoo.get_channel(922592622248341505)
 	async for message in songs_channel.history (limit = 1):
 		await message.delete()
 
-	with open("top_songs.json", "w") as outfile:
+	with open("Data Files/top_songs.json", "w") as outfile:
 		json.dump(top_songs, outfile)
 
-	await songs_channel.send(file=discord.File("top_songs.json"))
+	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
 
 async def async_timer(timeout, stuff):
     while True:
