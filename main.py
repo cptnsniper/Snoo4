@@ -75,6 +75,9 @@ async def initialize_data():
 	for guild in snoo.guilds:
 		users_in_vc[guild.id] = []
 
+	if (not os.path.isdir('Data Files')):
+		os.makedirs("Data Files")
+
 	data_channel = snoo.get_channel(913524327775895563)
 	async for message in data_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/user_karma.json")
