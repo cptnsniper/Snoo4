@@ -593,7 +593,7 @@ async def play_url(url, display_ui = False):
 		with YoutubeDL(YDL_OPTIONS) as ydl:
 			vid = ydl.extract_info(url, download=False)
 		URL = vid['url']
-		info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
+		info["voice"].play(FFmpegPCMAudio(executable = "ffmpeg.exe", source = URL, **FFMPEG_OPTIONS))
 		info["voice"].is_playing()
 
 	if (display_ui):
