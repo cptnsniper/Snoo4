@@ -1,3 +1,4 @@
+from locale import Error
 import discord
 from discord import guild
 from discord import message
@@ -502,6 +503,18 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 #music
 info = {"queue": [], "paused": False, "voice": None, "channel": discord.channel, "playing": False, "task": None, "looping": False, "video_info": defaultdict(dict)}
 
+def find_url(string):
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    url = re.findall(regex,string)      
+    return [x[0] for x in url]
+
+def search_yt(search):
+	query_string = urllib.parse.urlencode({'search_query' : search})
+	html_content = urllib.request.urlopen('http://www.youtube.com/results?' + query_string)
+	search_results = re.findall(r"watch\?v=(\S{11})", html_content.read().decode())
+
+	return 'http://www.youtube.com/watch?v=' + search_results[0]
+
 @snoo.command()
 async def play(ctx, *, search = "null"):
 	info["channel"] = ctx.channel
@@ -521,34 +534,40 @@ async def play(ctx, *, search = "null"):
 		if (validators.url(search) and "youtu" in search):
 			url = search
 		else:
-			query_string = urllib.parse.urlencode({'search_query' : search})
-			html_content = urllib.request.urlopen('http://www.youtube.com/results?' + query_string)
-			search_results = re.findall(r"watch\?v=(\S{11})", html_content.read().decode())
-
-			url = 'http://www.youtube.com/watch?v=' + search_results[0]
+			url = search_yt(search)
 	else:
 		msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-		url = msg.content
+		if (len(find_url(msg.content)) >= 1):
+			temp_url = find_url(msg.content)[0]
+			if ("youtu" in temp_url):
+				url = temp_url
+			else:
+				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
+				url = search_yt(msg.content)
+		else:
+			if (msg.content == ""):
+				await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
+				return
+			else:
+				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
+				url = search_yt(msg.content)
 
 	if (url not in top_songs[ctx.guild.id]):
 		top_songs[ctx.guild.id][url] = 1
 	else:
 		top_songs[ctx.guild.id][url] += 1
 
-	if (not info["voice"].is_playing() and not info["paused"]):
-		await play_url(url)
-		info["playing"] = True
-
-		info["task"] = asyncio.create_task(async_timer(5, check_if_song_ended))
-
-		embed_type = "||  PLAYING"
-	else:
-		embed_type = "||  QUEUED"
-
 	if (url not in info["video_info"]):
 		session = AsyncHTMLSession()
 		response = await session.get(url)
 		soup = bs(response.html.html, "html.parser")
+
+		if ("og:restrictions:age" in soup.find_all("meta")):
+			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
+				if (message != None):
+					await message.delete()
+				await ctx.send("Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!")
+				return
 
 		info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
 		duration = soup.find("meta", itemprop="duration")["content"]
@@ -560,6 +579,8 @@ async def play(ctx, *, search = "null"):
 		info["video_info"][url]["channel_name"] = channel_soup.find("meta", itemprop="name")["content"]
 
 		all_info = soup.find_all("meta")
+		print(soup.find("span", {"class": "ytp-time-duration"}))
+		print(soup.find("image", {"class": "twitter"}))
 		result = re.search('"twitter:description"/>, <meta content="(.*)" name="twitter:image"/>', str(all_info))
 		info["video_info"][url]["thumbnail"] = result.group(1)
 		
@@ -583,8 +604,19 @@ async def play(ctx, *, search = "null"):
 			info["video_info"][url]["duration"] = f"{mins}:{secs}"
 	
 	info["queue"].append(url)
-	if (ctx.message.reference is None):
+	if (message != None):
 		await message.delete()
+
+	if (not info["voice"].is_playing() and not info["paused"]):
+		await play_url(url)
+
+		info["playing"] = True
+
+		info["task"] = asyncio.create_task(async_timer(5, check_if_song_ended))
+
+		embed_type = "||  PLAYING"
+	else:
+		embed_type = "||  QUEUED"
 
 	embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
 
@@ -604,6 +636,7 @@ async def play_url(url, display_ui = False):
 		with YoutubeDL(YDL_OPTIONS) as ydl:
 			vid = ydl.extract_info(url, download=False)
 		URL = vid['url']
+
 		info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
 		info["voice"].is_playing()
 
@@ -631,7 +664,7 @@ async def play_next():
 		del info["queue"][0]
 
 	if (len(info["queue"]) > 0):
-		await play_url(info["queue"][0], True)
+		await play_url(info["queue"][0], not info["looping"])
 
 @snoo.command()
 async def pause(ctx):
@@ -702,7 +735,7 @@ async def check_if_song_ended():
 		return
 
 	if (not info["voice"].is_playing() and not info["paused"]):
-		if (len(info["queue"]) > 1):
+		if (len(info["queue"]) > 1 or info["looping"]):
 			await play_next()
 		else:
 			await info["voice"].disconnect()
