@@ -50,7 +50,7 @@ top_songs = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.3.8"
+version = "0.3.9"
 
 @snoo.event
 async def on_ready():
@@ -72,8 +72,8 @@ async def initialize_data():
 	global users_in_vc
 	global user_vc_time
 
-	for guild in snoo.guilds:
-		users_in_vc[guild.id] = []
+	#for guild in snoo.guilds:
+	#	users_in_vc[guild.id] = []
 
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
@@ -118,6 +118,14 @@ async def initialize_data():
 
 	str_vc_time = json.load(f)
 
+	user_vc_channel = snoo.get_channel(924786492872728616)
+	async for message in user_vc_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/users_in_vc.json")
+
+	f = open('Data Files/users_in_vc.json')
+
+	str_users_in_vc = json.load(f)
+
 	#convert dictionarys to int:
 	for key in str_karma_time:
 		for new_key in str_karma_time[key]:
@@ -126,6 +134,9 @@ async def initialize_data():
 
 	for key in str_friendship:
 		user_friendship[int(key)] = str_friendship[key]
+
+	for key in str_users_in_vc:
+		users_in_vc[int(key)] = str_users_in_vc[key]
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
@@ -615,10 +626,9 @@ async def nowplaying(ctx, url = "blank"):
 	await ctx.send(embed=embed)
 
 async def play_next():
-	if (info["looping"]):
-		info["queue"].append(info["queue"][0])
-
-	del info["queue"][0]
+	if (not info["looping"]):
+		#info["queue"].append(info["queue"][0])
+		del info["queue"][0]
 
 	if (len(info["queue"]) > 0):
 		await play_url(info["queue"][0], True)
@@ -857,6 +867,15 @@ async def new_save():
 		json.dump(user_vc_time, outfile)
 
 	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
+
+	user_vc_channel = snoo.get_channel(924786492872728616)
+	async for message in user_vc_channel.history (limit = 1):
+		await message.delete()
+
+	with open("Data Files/users_in_vc.json", "w") as outfile:
+		json.dump(users_in_vc, outfile)
+
+	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
 	songs_channel = snoo.get_channel(922592622248341505)
 	async for message in songs_channel.history (limit = 1):
