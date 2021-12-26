@@ -578,11 +578,7 @@ async def play(ctx, *, search = "null"):
 		channel_soup = bs(channel_responce.html.html, "html.parser")
 		info["video_info"][url]["channel_name"] = channel_soup.find("meta", itemprop="name")["content"]
 
-		all_info = soup.find_all("meta")
-		print(soup.find("span", {"class": "ytp-time-duration"}))
-		print(soup.find("image", {"class": "twitter"}))
-		result = re.search('"twitter:description"/>, <meta content="(.*)" name="twitter:image"/>', str(all_info))
-		info["video_info"][url]["thumbnail"] = result.group(1)
+		info["video_info"][url]["thumbnail"] = soup.find("meta", {"name": "twitter:image"})['content']
 		
 		info["video_info"][url]["views"] = "{:,}".format(views)
 
