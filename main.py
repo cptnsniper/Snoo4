@@ -1,3 +1,4 @@
+from asyncio.tasks import wait
 from locale import Error
 import discord
 from discord import guild
@@ -308,6 +309,36 @@ async def on_voice_state_update(member, before, after):
 		users_in_vc[before.channel.guild.id].remove(member.id)
 
 #utility
+@snoo.command()
+async def yt_mp3(ctx, *, url):
+	if (validators.url(url) and "youtu" in url):
+		ydl_opts = {'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192',}], 'outtmpl': "video.mp3",}
+		with YoutubeDL(ydl_opts) as ydl:
+			msg = await ctx.send(f"Downloading <a:Loading:908094681504706570>")
+
+			ydl.download([url])
+
+			await msg.delete()
+			await ctx.send(file=discord.File('video.mp3'))
+			os.remove("video.mp3")
+	else:
+		await ctx.send("That's not a youtube url!")
+
+@snoo.command()
+async def yt_mp4(ctx, *, url):
+	if (validators.url(url) and "youtu" in url):
+		ydl_opts = {'format': 'mp4', 'outtmpl': "video.mp4",}
+		with YoutubeDL(ydl_opts) as ydl:
+			msg = await ctx.send(f"Downloading <a:Loading:908094681504706570>")
+
+			ydl.download([url])
+
+			await msg.delete()
+			await ctx.send(file=discord.File('video.mp4'))
+			os.remove("video.mp4")
+	else:
+		await ctx.send("That's not a youtube url!")
+
 @snoo.command()
 async def poll(ctx, name, opt_a, opt_b, opt_c = "", opt_d = "", opt_e = "", opt_f = "", opt_g = "",):
 	embed = discord.Embed(title = f"{name}", description = "\u200b", colour = snoo_color)
@@ -645,17 +676,17 @@ async def play_url(url, display_ui = False):
 		await nowplaying(info["channel"], url)
 
 @snoo.command()
-async def nowplaying(ctx):
-	"""if (url == "null"):
-		url = info["queue"][0]"""
+async def nowplaying(ctx, url):
+	if (url == "null"):
+		url = info["queue"][0]
 
-	embed=discord.Embed(title = info["video_info"][info["queue"][0]]["title"], url = info["queue"][0], description = f'by [{info["video_info"][info["queue"][0]]["channel_name"]}]({info["video_info"][info["queue"][0]]["channel_link"]})', color=snoo_color)
+	embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
 
-	embed.set_thumbnail(url=info["video_info"][info["queue"][0]]["thumbnail"])
+	embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
 	embed.set_author(name = "||  NOW PLAYING", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
-	embed.add_field(name="Views:", value = info["video_info"][info["queue"][0]]["views"], inline=True)
-	embed.add_field(name="Duration:", value = info["video_info"][info["queue"][0]]["duration"], inline=True)
+	embed.add_field(name="Views:", value = info["video_info"][url]["views"], inline=True)
+	embed.add_field(name="Duration:", value = info["video_info"][url]["duration"], inline=True)
 
 	await ctx.send(embed=embed)
 
@@ -725,7 +756,7 @@ async def queue(ctx):
 			
 			await ctx.send(embed=embed)
 		else:
-			await nowplaying(ctx)
+			await nowplaying(ctx, info["queue"][0])
 
 @snoo.command()
 async def skip(ctx):
