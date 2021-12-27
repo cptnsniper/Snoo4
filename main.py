@@ -551,11 +551,16 @@ async def play(ctx, *, search = "null"):
 			else:
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
 				url = search_yt(msg.content)
+	
+	if ("watch?v=" in url):
+		song_url = url.split("watch?v=",1)[1]
+	elif ("youtu.be" in url):
+		song_url = url.split("be/",1)[1]
 
-	if (url not in top_songs[ctx.guild.id]):
-		top_songs[ctx.guild.id][url] = 1
+	if (song_url not in top_songs[ctx.guild.id]):
+		top_songs[ctx.guild.id][song_url] = 1
 	else:
-		top_songs[ctx.guild.id][url] += 1
+		top_songs[ctx.guild.id][song_url] += 1
 
 	if (url not in info["video_info"]):
 		session = AsyncHTMLSession()
@@ -640,17 +645,17 @@ async def play_url(url, display_ui = False):
 		await nowplaying(info["channel"], url)
 
 @snoo.command()
-async def nowplaying(ctx, url = "blank"):
-	if (url == "blank"):
-		url = info["queue"][0]
+async def nowplaying(ctx):
+	"""if (url == "null"):
+		url = info["queue"][0]"""
 
-	embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
+	embed=discord.Embed(title = info["video_info"][info["queue"][0]]["title"], url = info["queue"][0], description = f'by [{info["video_info"][info["queue"][0]]["channel_name"]}]({info["video_info"][info["queue"][0]]["channel_link"]})', color=snoo_color)
 
-	embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
+	embed.set_thumbnail(url=info["video_info"][info["queue"][0]]["thumbnail"])
 	embed.set_author(name = "||  NOW PLAYING", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
-	embed.add_field(name="Views:", value = info["video_info"][url]["views"], inline=True)
-	embed.add_field(name="Duration:", value = info["video_info"][url]["duration"], inline=True)
+	embed.add_field(name="Views:", value = info["video_info"][info["queue"][0]]["views"], inline=True)
+	embed.add_field(name="Duration:", value = info["video_info"][info["queue"][0]]["duration"], inline=True)
 
 	await ctx.send(embed=embed)
 
@@ -689,35 +694,38 @@ async def stop(ctx):
 @snoo.command()
 async def queue(ctx):
 	if (info["voice"].is_playing()):
-		embed=discord.Embed(title = "Now playing", description = "", color=snoo_color)
-		embed.set_author(name = "||  QUEUE", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
-		
-		songs = ""
-		durations = ""
-		channels = ""
+		if (len(info["queue"]) > 1):
+			embed=discord.Embed(title = "Now playing", description = "", color=snoo_color)
+			embed.set_author(name = "||  QUEUE", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+			
+			songs = ""
+			durations = ""
+			channels = ""
 
-		for i in range(len(info["queue"])):
-			if (i == 0):
-				embed.add_field(name = f'<a:MusicBars:917119951603646505> {info["video_info"][info["queue"][i]]["title"]}', value = info["video_info"][info["queue"][i]]["channel_name"], inline = True)
-				embed.add_field(name = "Duration", value = info["video_info"][info["queue"][i]]["duration"], inline = True)
-				embed.add_field(name = "Looping", value = info["looping"], inline = False)
+			for i in range(len(info["queue"])):
+				if (i == 0):
+					embed.add_field(name = f'<a:MusicBars:917119951603646505> {info["video_info"][info["queue"][i]]["title"]}', value = info["video_info"][info["queue"][i]]["channel_name"], inline = True)
+					embed.add_field(name = "Duration", value = info["video_info"][info["queue"][i]]["duration"], inline = True)
+					embed.add_field(name = "Looping", value = info["looping"], inline = False)
 
-				embed.set_thumbnail(url=info["video_info"][info["queue"][i]]["thumbnail"])
-			else:
-				songs += f"{i} " + info["video_info"][info["queue"][i]]["title"][0 : 45]
-				if (len(info["video_info"][info["queue"][i]]["title"]) > 45):
-					songs += "...\n"
+					embed.set_thumbnail(url=info["video_info"][info["queue"][i]]["thumbnail"])
 				else:
-					songs += "\n"
+					songs += f"{i} " + info["video_info"][info["queue"][i]]["title"][0 : 45]
+					if (len(info["video_info"][info["queue"][i]]["title"]) > 45):
+						songs += "...\n"
+					else:
+						songs += "\n"
 
-				channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
-				durations += info["video_info"][info["queue"][i]]["duration"] + "\n"
+					channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
+					durations += info["video_info"][info["queue"][i]]["duration"] + "\n"
 
-		embed.add_field(name = "Next Up", value = songs, inline=True)
-		#embed.add_field(name = "Channel", value = channels, inline=True)
-		embed.add_field(name = "Duration", value = durations, inline=True)
-		
-		await ctx.send(embed=embed)
+			embed.add_field(name = "Next Up", value = songs, inline=True)
+			#embed.add_field(name = "Channel", value = channels, inline=True)
+			embed.add_field(name = "Duration", value = durations, inline=True)
+			
+			await ctx.send(embed=embed)
+		else:
+			await nowplaying(ctx)
 
 @snoo.command()
 async def skip(ctx):
