@@ -23,6 +23,7 @@ import pandas as pd
 from collections import defaultdict
 from typing import Union
 from cryptography.fernet import Fernet
+import random
 
 import urllib.parse, urllib.request, re
 from validators.url import url
@@ -303,7 +304,8 @@ async def on_reaction_remove(reaction, user):
 async def on_voice_state_update(member, before, after):
 	if (not before.channel and after.channel):
 		#print(f'{member} has joined vc')
-		users_in_vc[after.channel.guild.id].append(member.id)
+		if (member.id not in users_in_vc[after.channel.guild.id]):
+			users_in_vc[after.channel.guild.id].append(member.id)
 	elif (before.channel and not after.channel):
 		#print(f'{member} has left vc')
 		users_in_vc[before.channel.guild.id].remove(member.id)
@@ -676,7 +678,7 @@ async def play_url(url, display_ui = False):
 		await nowplaying(info["channel"], url)
 
 @snoo.command()
-async def nowplaying(ctx, url):
+async def nowplaying(ctx, url = "null"):
 	if (url == "null"):
 		url = info["queue"][0]
 
@@ -793,6 +795,17 @@ async def loop(ctx):
 		else:
 			info["looping"] = True
 			await ctx.send("I'll now loop the current song!")
+
+@snoo.command()
+async def shuffle(ctx):
+	if (info["voice"].is_playing()):
+		nowplaying = info["queue"][0]
+		info["queue"].remove(info["queue"][0])
+
+		random.shuffle(info["queue"])
+		
+		info["queue"].insert(0, nowplaying)
+		await ctx.send("I have shuffled the current queue!")
 
 #debugging
 @snoo.command()
