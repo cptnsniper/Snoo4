@@ -582,16 +582,6 @@ async def play(ctx, *, search = "null"):
 			else:
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
 				url = search_yt(msg.content)
-	
-	if ("watch?v=" in url):
-		song_url = url.split("watch?v=",1)[1]
-	elif ("youtu.be" in url):
-		song_url = url.split("be/",1)[1]
-
-	if (song_url not in top_songs[ctx.guild.id]):
-		top_songs[ctx.guild.id][song_url] = 1
-	else:
-		top_songs[ctx.guild.id][song_url] += 1
 
 	if (url not in info["video_info"]):
 		session = AsyncHTMLSession()
@@ -660,6 +650,16 @@ async def play(ctx, *, search = "null"):
 async def play_url(url, display_ui = False):
 	if (info["voice"].is_playing()):
 		info["voice"].stop()
+
+	if ("watch?v=" in url):
+		song_url = url.split("watch?v=",1)[1]
+	elif ("youtu.be" in url):
+		song_url = url.split("be/",1)[1]
+
+	if (song_url not in top_songs[info["voice"].guild.id]):
+		top_songs[info["voice"].guild.id][song_url] = 1
+	else:
+		top_songs[info["voice"].guild.id][song_url] += 1
 
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
