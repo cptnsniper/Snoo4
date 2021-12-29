@@ -596,7 +596,18 @@ async def play(ctx, *, search = "null"):
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
 				url = search_yt(msg.content)
 		else:
-			if (msg.content == ""):
+			if (len(msg.embeds) >= 1): 
+				print(msg.embeds[0].url)
+				if (str(msg.embeds[0].url) != "Embed.Empty"):
+					if ("youtu" in msg.embeds[0].url):
+						url = msg.embeds[0].url
+					else:
+						await ctx.send("That's not a YouTube link, I'm unable to play it!")
+						return
+				else:		
+					await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
+					return
+			elif (msg.content == ""):
 				await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
 				return
 			else:
