@@ -1,5 +1,6 @@
 from asyncio.tasks import wait
 from locale import Error
+from types import NoneType
 import discord
 from discord import guild
 from discord import message
@@ -53,7 +54,7 @@ top_songs = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.3.9"
+version = "0.3.10"
 
 @snoo.event
 async def on_ready():
@@ -548,12 +549,29 @@ def search_yt(search):
 
 	return 'http://www.youtube.com/watch?v=' + search_results[0]
 
+def format_time(mins, secs):
+	if (secs < 10):
+		secs = "0" + str(secs)
+
+	if (mins >= 60):
+		hours = math.floor(mins / 60)
+		mins = mins % 60
+		if (mins < 10):
+			mins = "0" + str(mins)
+		return f"{hours}:{mins}:{secs}"
+	else:
+		return f"{mins}:{secs}"
+
 @snoo.command()
 async def play(ctx, *, search = "null"):
 	info["channel"] = ctx.channel
 	info["voice"] = get(snoo.voice_clients, guild = ctx.guild)
 	info["looping"] = False;
 	message = None
+
+	if (type(ctx.message.author.voice) == NoneType):
+		await ctx.send("Make sure you're in a voice channel first!")
+		return
 
 	channel = ctx.message.author.voice.channel
 
@@ -590,7 +608,7 @@ async def play(ctx, *, search = "null"):
 		response = await session.get(url)
 		soup = bs(response.html.html, "html.parser")
 
-		if ("og:restrictions:age" in soup.find_all("meta")):
+		if ("og:restrictions:age" in str(soup.find_all("meta"))):
 			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
 				if (message != None):
 					await message.delete()
@@ -598,6 +616,7 @@ async def play(ctx, *, search = "null"):
 				return
 
 		info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
+		info["video_info"][url]["publish_date"] = soup.find("meta", itemprop="datePublished")["content"]
 		duration = soup.find("meta", itemprop="duration")["content"]
 		views = int(soup.find("meta", itemprop="interactionCount")['content'])
 
@@ -610,26 +629,16 @@ async def play(ctx, *, search = "null"):
 		
 		info["video_info"][url]["views"] = "{:,}".format(views)
 
+		info["video_info"][url]["start_time"] = datetime.datetime.now()
+
 		mins = re.search('PT(.*)M', duration)
 		mins = int(mins.group(1))
 
 		secs = re.search('M(.*)S', duration)
 		secs = int(secs.group(1))
-		if (secs < 10):
-			secs = "0" + str(secs)
-
-		if (mins >= 60):
-			hours = math.floor(mins / 60)
-			mins = mins % 60
-			if (mins < 10):
-				mins = "0" + str(mins)
-			info["video_info"][url]["duration"] = f"{hours}:{mins}:{secs}"
-		else:
-			info["video_info"][url]["duration"] = f"{mins}:{secs}"
-	
-	info["queue"].append(url)
-	if (message != None):
-		await message.delete()
+		
+		info["video_info"][url]["duration"] = format_time(mins, secs)
+		info["video_info"][url]["secs_length"] = secs + mins * 60
 
 	if (not info["voice"].is_playing() and not info["paused"]):
 		await play_url(url)
@@ -647,6 +656,10 @@ async def play(ctx, *, search = "null"):
 	embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
 	embed.set_author(name = embed_type, icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
+	info["queue"].append(url)
+	if (message != None):
+		await message.delete()
+	
 	await ctx.send(embed=embed)
 
 async def play_url(url, display_ui = False):
@@ -688,8 +701,32 @@ async def nowplaying(ctx, url = "null"):
 	embed.set_author(name = "||  NOW PLAYING", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
 	embed.add_field(name="Views:", value = info["video_info"][url]["views"], inline=True)
-	embed.add_field(name="Duration:", value = info["video_info"][url]["duration"], inline=True)
+	embed.add_field(name="Upload Date:", value = info["video_info"][url]["publish_date"], inline=True)
 
+	time_since_start = datetime.datetime.now() - info["video_info"][url]["start_time"]
+
+	hours, remainder = divmod(time_since_start.seconds, 3600)
+	minutes, seconds = divmod(remainder, 60)
+
+	if (info["video_info"][url]["duration"].count(":") >= 2):
+		playing_for = f"{hours}:{format_time(minutes, seconds)}"
+	else:
+		playing_for = format_time(minutes, seconds)
+
+	watch_prsnt = time_since_start.seconds * (100 / info["video_info"][url]["secs_length"])
+
+	play_bar = f'{playing_for} / {info["video_info"][url]["duration"]} '
+
+	playbar_length = 14
+
+	for i in range(playbar_length):
+		if (i < round(watch_prsnt * (playbar_length / 100))):
+			play_bar += "<:PlayBar:925476587439288381>"
+		else:
+			play_bar += "<:GreyPlayBar:925476587493785700>"
+
+	embed.add_field(name='Duration:', value = play_bar, inline=False)
+ 
 	await ctx.send(embed=embed)
 
 async def play_next():
@@ -700,7 +737,7 @@ async def play_next():
 	if (len(info["queue"]) > 0):
 		await play_url(info["queue"][0], not info["looping"])
 
-@snoo.command()
+"""@snoo.command()
 async def pause(ctx):
 	if info["voice"].is_playing():
 		info["voice"].pause()
@@ -709,7 +746,7 @@ async def pause(ctx):
 	else:
 		info["voice"].resume()
 		info["paused"] = False
-		await ctx.message.add_reaction("▶️")
+		await ctx.message.add_reaction("▶️")"""
 
 @snoo.command()
 async def stop(ctx):
@@ -803,7 +840,7 @@ async def shuffle(ctx):
 		info["queue"].remove(info["queue"][0])
 
 		random.shuffle(info["queue"])
-		
+
 		info["queue"].insert(0, nowplaying)
 		await ctx.send("I have shuffled the current queue!")
 
