@@ -1,6 +1,5 @@
 from asyncio.tasks import wait
 from locale import Error
-from types import NoneType
 import discord
 from discord import guild
 from discord import message
@@ -8,12 +7,9 @@ from discord import channel
 from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
-
 import ctypes
 import ctypes.util
-
 import os
-
 import validators
 import json
 import datetime
@@ -25,11 +21,9 @@ from collections import defaultdict
 from typing import Union
 from cryptography.fernet import Fernet
 import random
-
 import urllib.parse, urllib.request, re
 from validators.url import url
 from youtube_dl import YoutubeDL
-
 from requests_html import AsyncHTMLSession 
 from bs4 import BeautifulSoup as bs
 
@@ -566,10 +560,10 @@ def format_time(mins, secs):
 async def play(ctx, *, search = "null"):
 	info["channel"] = ctx.channel
 	info["voice"] = get(snoo.voice_clients, guild = ctx.guild)
-	info["looping"] = False;
+	info["looping"] = False
 	message = None
 
-	if (type(ctx.message.author.voice) == NoneType):
+	if (type(ctx.message.author.voice) == type(None)):
 		await ctx.send("Make sure you're in a voice channel first!")
 		return
 
