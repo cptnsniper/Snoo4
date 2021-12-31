@@ -543,18 +543,19 @@ def search_yt(search):
 
 	return 'http://www.youtube.com/watch?v=' + search_results[0]
 
-def format_time(mins, secs):
-	if (secs < 10):
-		secs = "0" + str(secs)
+def format_time(secs):
+	hours, remainder = divmod(secs, 3600)
+	minutes, seconds = divmod(remainder, 60)
 
-	if (mins >= 60):
-		hours = math.floor(mins / 60)
-		mins = mins % 60
-		if (mins < 10):
-			mins = "0" + str(mins)
-		return f"{hours}:{mins}:{secs}"
+	if (seconds < 10):
+		seconds = "0" + str(secs)
+
+	if (hours >= 1):
+		if (minutes < 10):
+			minutes = "0" + str(minutes)
+		return f"{hours}:{minutes}:{seconds}"
 	else:
-		return f"{mins}:{secs}"
+		return f"{minutes}:{seconds}"
 
 @snoo.command()
 async def play(ctx, *, search = "null"):
@@ -640,7 +641,7 @@ async def play(ctx, *, search = "null"):
 		secs = re.search('M(.*)S', duration)
 		secs = int(secs.group(1))
 		
-		info["video_info"][url]["duration"] = format_time(mins, secs)
+		info["video_info"][url]["duration"] = format_time(secs + mins * 60)
 		info["video_info"][url]["secs_length"] = secs + mins * 60
 
 	if (not info["voice"].is_playing() and not info["paused"]):
@@ -707,26 +708,15 @@ async def nowplaying(ctx, url = "null"):
 	embed.add_field(name="Upload Date:", value = info["video_info"][url]["publish_date"], inline=True)
 
 	time_since_start = datetime.datetime.now() - info["start_time"]
-
-	hours, remainder = divmod(time_since_start.seconds, 3600)
-	minutes, seconds = divmod(remainder, 60)
-
-	if (info["video_info"][url]["duration"].count(":") >= 2):
-		playing_for = f"{hours}:{format_time(minutes, seconds)}"
-	else:
-		playing_for = format_time(minutes, seconds)
-
+	playing_for = format_time(time_since_start.seconds)
 	watch_prsnt = time_since_start.seconds * (100 / info["video_info"][url]["secs_length"])
 
 	play_bar = f'{playing_for} / {info["video_info"][url]["duration"]} '
 
 	playbar_length = 14
 
-	for i in range(playbar_length):
-		if (i < round(watch_prsnt * (playbar_length / 100))):
-			play_bar += "<:PlayBar:925476587439288381>"
-		else:
-			play_bar += "<:GreyPlayBar:925476587493785700>"
+	play_bar += "<:PlayBar:925476587439288381>" * round(watch_prsnt * (playbar_length / 100))
+	play_bar += "<:GreyPlayBar:925476587493785700>" * (playbar_length - round(watch_prsnt * (playbar_length / 100)))
 
 	embed.add_field(name='Duration:', value = play_bar, inline=False)
  
@@ -783,7 +773,7 @@ async def queue(ctx):
 
 					embed.set_thumbnail(url=info["video_info"][info["queue"][i]]["thumbnail"])
 				else:
-					songs += f"{i} " + info["video_info"][info["queue"][i]]["title"][0 : 45]
+					songs += f"**{i}** " + info["video_info"][info["queue"][i]]["title"][0 : 45]
 					if (len(info["video_info"][info["queue"][i]]["title"]) > 45):
 						songs += "...\n"
 					else:
@@ -810,7 +800,10 @@ async def skip(ctx):
 async def check_if_song_ended(url, delay):
 	await asyncio.sleep(delay)
 
-	if (url == info["queue"][0] and not info["voice"].is_playing() and not info["paused"]):
+	if (len(info["queue"]) <= 0):
+		return
+
+	if (url == info["queue"][0]):
 		if (len(info["queue"]) > 1 or info["looping"]):
 			await play_next()
 		else:
