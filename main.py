@@ -646,10 +646,6 @@ async def play(ctx, *, search = "null"):
 	if (not info["voice"].is_playing() and not info["paused"]):
 		await play_url(url)
 
-		info["playing"] = True
-
-		info["task"] = asyncio.create_task(async_timer(5, check_if_song_ended))
-
 		embed_type = "||  PLAYING"
 	else:
 		embed_type = "||  QUEUED"
@@ -664,6 +660,9 @@ async def play(ctx, *, search = "null"):
 		await message.delete()
 	
 	await ctx.send(embed=embed)
+
+	if (embed_type == "||  PLAYING"):
+		await check_if_song_ended(url, info["video_info"][url]["secs_length"] + 0.5)
 
 async def play_url(url, display_ui = False):
 	if (info["voice"].is_playing()):
@@ -740,6 +739,7 @@ async def play_next():
 
 	if (len(info["queue"]) > 0):
 		await play_url(info["queue"][0], not info["looping"])
+		await check_if_song_ended(info["queue"][0], info["video_info"][info["queue"][0]]["secs_length"] + 1)
 
 """@snoo.command()
 async def pause(ctx):
@@ -759,7 +759,6 @@ async def stop(ctx):
 		info["video_info"].clear()
 		info["voice"].stop()
 		await info["voice"].disconnect()
-		info["playing"] = False
 
 		embed=discord.Embed(title = "Have a nice day!", description = f"", color=snoo_color)
 		embed.set_author(name = "||  STOPPED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
@@ -774,7 +773,7 @@ async def queue(ctx):
 			
 			songs = ""
 			durations = ""
-			channels = ""
+			#channels = ""
 
 			for i in range(len(info["queue"])):
 				if (i == 0):
@@ -790,7 +789,7 @@ async def queue(ctx):
 					else:
 						songs += "\n"
 
-					channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
+					#channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
 					durations += info["video_info"][info["queue"][i]]["duration"] + "\n"
 
 			embed.add_field(name = "Next Up", value = songs, inline=True)
@@ -808,11 +807,10 @@ async def skip(ctx):
 	else:
 		await ctx.send("This is the last song in queue, I have nothing to skip to!")
 
-async def check_if_song_ended():
-	if (not info["playing"]):
-		return
+async def check_if_song_ended(url, delay):
+	await asyncio.sleep(delay)
 
-	if (not info["voice"].is_playing() and not info["paused"]):
+	if (url == info["queue"][0] and not info["voice"].is_playing() and not info["paused"]):
 		if (len(info["queue"]) > 1 or info["looping"]):
 			await play_next()
 		else:
@@ -824,8 +822,6 @@ async def check_if_song_ended():
 
 			info["queue"].clear()
 			info["video_info"].clear()
-			info["playing"] = False
-			info["task"].cancel()
 
 @snoo.command()
 async def loop(ctx):
