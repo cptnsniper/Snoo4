@@ -634,8 +634,6 @@ async def play(ctx, *, search = "null"):
 		
 		info["video_info"][url]["views"] = "{:,}".format(views)
 
-		info["video_info"][url]["start_time"] = datetime.datetime.now()
-
 		mins = re.search('PT(.*)M', duration)
 		mins = int(mins.group(1))
 
@@ -691,6 +689,7 @@ async def play_url(url, display_ui = False):
 
 		info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
 		info["voice"].is_playing()
+		info["start_time"] = datetime.datetime.now()
 
 	if (display_ui):
 		await nowplaying(info["channel"], url)
@@ -708,7 +707,7 @@ async def nowplaying(ctx, url = "null"):
 	embed.add_field(name="Views:", value = info["video_info"][url]["views"], inline=True)
 	embed.add_field(name="Upload Date:", value = info["video_info"][url]["publish_date"], inline=True)
 
-	time_since_start = datetime.datetime.now() - info["video_info"][url]["start_time"]
+	time_since_start = datetime.datetime.now() - info["start_time"]
 
 	hours, remainder = divmod(time_since_start.seconds, 3600)
 	minutes, seconds = divmod(remainder, 60)
