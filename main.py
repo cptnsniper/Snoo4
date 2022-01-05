@@ -58,7 +58,7 @@ async def on_ready():
 	channel = snoo.get_channel(id=865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(1 * 6, new_save))
+	asyncio.create_task(async_timer(60 * 6, new_save))
 	await channel.send(f"Running version: {version}")
 	#print(channel.guild.emojis)
 
