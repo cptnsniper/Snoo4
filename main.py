@@ -58,7 +58,7 @@ async def on_ready():
 	channel = snoo.get_channel(id=865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	asyncio.create_task(async_timer(1 * 6, new_save))
 	await channel.send(f"Running version: {version}")
 	#print(channel.guild.emojis)
 
@@ -1014,13 +1014,10 @@ async def new_save():
 
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
 
-async def async_timer(timeout, stuff, args = None):
+async def async_timer(timeout, func):
 	while True:
 		await asyncio.sleep(timeout)
-		if (args == None):
-			await stuff()
-		else:
-			await stuff(args)
+		await func()
 
 
 #run snoo
