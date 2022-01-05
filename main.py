@@ -48,7 +48,7 @@ top_songs = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.3.10"
+version = "0.3.11"
 
 @snoo.event
 async def on_ready():
@@ -529,7 +529,7 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	os.remove("graph.png")
 
 #music
-info = {"queue": [], "paused": False, "voice": None, "channel": discord.channel, "playing": False, "task": None, "looping": False, "video_info": defaultdict(dict)}
+info = {"queue": [], "paused": False, "voice": None, "channel": discord.channel, "task": None, "looping": False, "nowplaying": discord.message, "video_info": defaultdict(dict)}
 
 def find_url(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
@@ -548,7 +548,7 @@ def format_time(secs):
 	minutes, seconds = divmod(remainder, 60)
 
 	if (seconds < 10):
-		seconds = "0" + str(secs)
+		seconds = "0" + str(seconds)
 
 	if (hours >= 1):
 		if (minutes < 10):
@@ -609,6 +609,8 @@ async def play(ctx, *, search = "null"):
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
 				url = search_yt(msg.content)
 
+	info["queue"].append(url)
+
 	if (url not in info["video_info"]):
 		session = AsyncHTMLSession()
 		response = await session.get(url)
@@ -644,26 +646,27 @@ async def play(ctx, *, search = "null"):
 		info["video_info"][url]["duration"] = format_time(secs + mins * 60)
 		info["video_info"][url]["secs_length"] = secs + mins * 60
 
+	queued = False
+
 	if (not info["voice"].is_playing() and not info["paused"]):
 		await play_url(url)
-
-		embed_type = "||  PLAYING"
+		info["nowplaying"] = await ctx.send(embed = nowplaying_embed())
+		info["task"] = asyncio.create_task(async_timer(1, update_nowplaying))
 	else:
-		embed_type = "||  QUEUED"
+		queued = True
 
-	embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
+		embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
 
-	embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
-	embed.set_author(name = embed_type, icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+		embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
+		embed.set_author(name = "||  QUEUED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
-	info["queue"].append(url)
+		await ctx.send(embed=embed)
+
 	if (message != None):
 		await message.delete()
-	
-	await ctx.send(embed=embed)
 
-	if (embed_type == "||  PLAYING"):
-		await check_if_song_ended(url, info["video_info"][url]["secs_length"] + 0.5)
+	if (not queued):
+		await check_if_song_ended(url, info["video_info"][url]["secs_length"])
 
 async def play_url(url, display_ui = False):
 	if (info["voice"].is_playing()):
@@ -692,26 +695,31 @@ async def play_url(url, display_ui = False):
 		info["start_time"] = datetime.datetime.now()
 
 	if (display_ui):
-		await nowplaying(info["channel"], url)
+		msg = None
+		async for message in info["channel"].history (limit = 5):
+			if (len(message.embeds) >= 1):
+				if (str(message.embeds[0].author.name) == "||  NOW PLAYING"):
+					msg = message
+					break
 
-@snoo.command()
-async def nowplaying(ctx, url = "null"):
-	if (url == "null"):
-		url = info["queue"][0]
+		if (msg == None):
+			await info["nowplaying"].delete()
+			info["nowplaying"] = await info["channel"].send(embed = nowplaying_embed())
 
-	embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
+def nowplaying_embed():
+	embed=discord.Embed(title = info["video_info"][info["queue"][0]]["title"], url = info["queue"][0], description = f'by [{info["video_info"][info["queue"][0]]["channel_name"]}]({info["video_info"][info["queue"][0]]["channel_link"]})', color=snoo_color)
 
-	embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
+	embed.set_thumbnail(url=info["video_info"][info["queue"][0]]["thumbnail"])
 	embed.set_author(name = "||  NOW PLAYING", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
 
-	embed.add_field(name="Views:", value = info["video_info"][url]["views"], inline=True)
-	embed.add_field(name="Upload Date:", value = info["video_info"][url]["publish_date"], inline=True)
+	embed.add_field(name="Views:", value = info["video_info"][info["queue"][0]]["views"], inline=True)
+	embed.add_field(name="Upload Date:", value = info["video_info"][info["queue"][0]]["publish_date"], inline=True)
 
 	time_since_start = datetime.datetime.now() - info["start_time"]
 	playing_for = format_time(time_since_start.seconds)
-	watch_prsnt = time_since_start.seconds * (100 / info["video_info"][url]["secs_length"])
+	watch_prsnt = time_since_start.seconds * (100 / info["video_info"][info["queue"][0]]["secs_length"])
 
-	play_bar = f'{playing_for} / {info["video_info"][url]["duration"]} '
+	play_bar = f'{playing_for} / {info["video_info"][info["queue"][0]]["duration"]} '
 
 	playbar_length = 14
 
@@ -719,8 +727,15 @@ async def nowplaying(ctx, url = "null"):
 	play_bar += "<:GreyPlayBar:925476587493785700>" * (playbar_length - round(watch_prsnt * (playbar_length / 100)))
 
 	embed.add_field(name='Duration:', value = play_bar, inline=False)
- 
-	await ctx.send(embed=embed)
+
+	return embed
+
+@snoo.command()
+async def nowplaying(ctx):
+	await ctx.send(embed = nowplaying_embed())
+
+async def update_nowplaying():
+	await info["nowplaying"].edit(embed = nowplaying_embed())
 
 async def play_next():
 	if (not info["looping"]):
@@ -748,6 +763,7 @@ async def stop(ctx):
 		info["queue"].clear()
 		info["video_info"].clear()
 		info["voice"].stop()
+		info["task"].cancel()
 		await info["voice"].disconnect()
 
 		embed=discord.Embed(title = "Have a nice day!", description = f"", color=snoo_color)
@@ -774,7 +790,7 @@ async def queue(ctx):
 					embed.set_thumbnail(url=info["video_info"][info["queue"][i]]["thumbnail"])
 				else:
 					songs += f"**{i}** " + info["video_info"][info["queue"][i]]["title"][0 : 45]
-					if (len(info["video_info"][info["queue"][i]]["title"]) > 45):
+					if (len(info["video_info"][info["queue"][i]]["title"]) > 30):
 						songs += "...\n"
 					else:
 						songs += "\n"
@@ -788,7 +804,7 @@ async def queue(ctx):
 			
 			await ctx.send(embed=embed)
 		else:
-			await nowplaying(ctx, info["queue"][0])
+			await ctx.send(embed = nowplaying_embed())
 
 @snoo.command()
 async def skip(ctx):
@@ -808,6 +824,7 @@ async def check_if_song_ended(url, delay):
 			await play_next()
 		else:
 			await info["voice"].disconnect()
+			info["task"].cancel()
 
 			embed=discord.Embed(title = "Play something new!", description = f"", color=snoo_color)
 			embed.set_author(name = "||  QUEUE ENDED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
@@ -997,10 +1014,14 @@ async def new_save():
 
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
 
-async def async_timer(timeout, stuff):
-    while True:
-        await asyncio.sleep(timeout)
-        await stuff()
+async def async_timer(timeout, stuff, args = None):
+	while True:
+		await asyncio.sleep(timeout)
+		if (args == None):
+			await stuff()
+		else:
+			await stuff(args)
+
 
 #run snoo
 check_time()
