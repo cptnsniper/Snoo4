@@ -26,6 +26,7 @@ from validators.url import url
 from youtube_dl import YoutubeDL
 from requests_html import AsyncHTMLSession 
 from bs4 import BeautifulSoup as bs
+#from decimal import Decimal
 
 #from bs4.builder import TreeBuilder
 #from bs4.element import nonwhitespace_re
@@ -58,7 +59,7 @@ async def on_ready():
 	channel = snoo.get_channel(id=865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	asyncio.create_task(async_timer(1 * 6, new_save))
 	await channel.send(f"Running version: {version}")
 	#print(channel.guild.emojis)
 
@@ -732,7 +733,7 @@ def nowplaying_embed():
 
 @snoo.command()
 async def nowplaying(ctx):
-	await ctx.send(embed = nowplaying_embed())
+	info["nowplaying"] = await ctx.send(embed = nowplaying_embed())
 
 async def update_nowplaying():
 	await info["nowplaying"].edit(embed = nowplaying_embed())
@@ -945,7 +946,7 @@ async def save(ctx):
 		await ctx.send(admin_command_message)
 
 async def new_save():
-	#global user_karma_time
+	print("Saving...")
 	global user_karma
 	global user_friendship
 	global channel_messages
@@ -955,10 +956,11 @@ async def new_save():
 		for user in users_in_vc[server]:
 			if (user not in user_vc_time[server]):
 				user_vc_time[server][user] = [0.1]
-				user_vc_time[server][user] = round(user_vc_time[server][user], 1)
+				#user_vc_time[server][user] = round(user_vc_time[server][user], 1)
 			else:
-				user_vc_time[server][user][len(user_vc_time[server][user]) - 1] += 0.1
-				user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1], 1)
+				#user_vc_time[server][user][len(user_vc_time[server][user]) - 1] += 0.1
+				user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1] + 0.1, 1)
+				#user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1], 1)
 
 	data_channel = snoo.get_channel(913524327775895563)
 	async for message in data_channel.history (limit = 1):
@@ -1013,6 +1015,8 @@ async def new_save():
 		json.dump(top_songs, outfile)
 
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
+
+	print("Saved")
 
 async def async_timer(timeout, func):
 	while True:
