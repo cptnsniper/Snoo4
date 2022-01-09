@@ -36,7 +36,7 @@ import plotly.express as px
 intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
-snoo = commands.Bot(command_prefix='!s ', intents=intents)
+snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo '], intents=intents)
 
 #data
 user_karma = defaultdict(dict)
@@ -53,7 +53,7 @@ version = "0.3.11"
 
 @snoo.event
 async def on_ready():
-	print('We have logged in as {0.user}'.format(snoo))
+	print(f'We have logged in as {snoo.user}')
 	
 	await snoo.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="with my master's sanity"))
 	channel = snoo.get_channel(id=865007153109663765)
@@ -178,7 +178,7 @@ async def on_message(message):
 	
 	#print(channel_messages)
 
-	if message.author == snoo.user:
+	if (message.author == snoo.user):
 		return
 
 	if (message.attachments or validators.url(message.content) or '*image*' in message.content.lower()):
