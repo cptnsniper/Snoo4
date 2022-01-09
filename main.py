@@ -26,6 +26,7 @@ from validators.url import url
 from youtube_dl import YoutubeDL
 from requests_html import AsyncHTMLSession 
 from bs4 import BeautifulSoup as bs
+import socket
 #from decimal import Decimal
 
 #from bs4.builder import TreeBuilder
@@ -60,7 +61,7 @@ async def on_ready():
 
 	await initialize_data()
 	asyncio.create_task(async_timer(60 * 6, new_save))
-	await channel.send(f"Running version: {version}")
+	await channel.send(f"Running version: {version} on {socket.gethostname()}")
 	#print(channel.guild.emojis)
 
 async def initialize_data():
