@@ -21,7 +21,9 @@ from collections import defaultdict
 from typing import Union
 from cryptography.fernet import Fernet
 import random
-import urllib.parse, urllib.request, re
+import urllib
+from urllib.request import Request, urlopen
+import re
 from validators.url import url
 from youtube_dl import YoutubeDL
 from requests_html import AsyncHTMLSession 
@@ -37,7 +39,7 @@ import plotly.express as px
 intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
-snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo '], intents=intents)
+snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo '], intents=intents)
 
 #data
 user_karma = defaultdict(dict)
@@ -50,7 +52,10 @@ top_songs = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.3.11"
+version = "0.4.12"
+
+poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
+music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
 
 @snoo.event
 async def on_ready():
@@ -71,9 +76,6 @@ async def initialize_data():
 	global user_karma
 	global users_in_vc
 	global user_vc_time
-
-	#for guild in snoo.guilds:
-	#	users_in_vc[guild.id] = []
 
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
@@ -129,7 +131,6 @@ async def initialize_data():
 	#convert dictionarys to int:
 	for key in str_karma_time:
 		for new_key in str_karma_time[key]:
-		#user_karma_time[int(key)] = str_karma_time[key]
 			user_karma[int(key)][int(new_key)] = str_karma_time[key][new_key]
 
 	for key in str_friendship:
@@ -151,7 +152,7 @@ async def initialize_data():
 			top_songs[int(key)][new_key] = str_top_songs[key][new_key]
 
 #dictionary updates
-@snoo.event
+"""@snoo.event
 async def on_member_join(member):
 	await add_members(member.guild)
 
@@ -167,9 +168,9 @@ async def add_members(guild):
 		if not (m.id in user_karma[guild.id]):
 			user_karma[guild.id][m.id] = [1]
 		if not (m.id in user_friendship):
-			user_friendship[m.id] = 0
+			user_friendship[m.id] = 0"""
 
-#message replys / polls
+#message replys / simple polls
 @snoo.event
 async def on_message(message):
 	if (message.guild.id not in channel_messages) or (message.channel.id not in channel_messages[message.guild.id]):
@@ -258,14 +259,16 @@ async def on_message(message):
 async def on_reaction_add(reaction, user) :
 	if (user == snoo.user or user == reaction.message.author):
 		return
-	"""if (type(reaction.emoji) == str):
-		return"""
-
-	"""if ((reaction.emoji.name == "Upvote" or reaction.emoji.name == "Downvote") and reaction.message.author not in user_karma[reaction.message.channel.guild.id]):
-		user_karma[reaction.message.channel.guild.id][reaction.message.author.id] = [1]"""
+	if (type(reaction.emoji) == str):
+		return
 
 	if (reaction.emoji.name == "Upvote") :
-		user_karma[reaction.message.channel.guild.id][reaction.message.author.id][len(user_karma[reaction.message.channel.guild.id][reaction.message.author.id]) - 1] += 1
+
+		if (reaction.message.guild.id not in user_karma) or (reaction.message.author.id not in user_karma[reaction.message.guild.id]):
+			user_karma[reaction.message.guild.id][reaction.message.author.id] = [1]
+		else:
+			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
+
 		user_friendship[user.id] += 1
 
 		if (reaction.message.reference is not None):
@@ -274,18 +277,22 @@ async def on_reaction_add(reaction, user) :
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] += 1
 
 	elif (reaction.emoji.name == "Downvote"):
+		if (reaction.message.guild.id not in user_karma) or (reaction.message.author.id not in user_karma[reaction.message.guild.id]):
+			user_karma[reaction.message.guild.id][reaction.message.author.id] = [1]
+		else:
+			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
+
 		user_friendship[user.id] -= 1
-		user_karma[reaction.message.channel.guild.id][reaction.message.author.id][len(user_karma[reaction.message.channel.guild.id][reaction.message.author.id]) - 1] -= 1
 
 @snoo.event
 async def on_reaction_remove(reaction, user):
 	if (user == snoo.user or user == reaction.message.author):
 		return
-	"""if (type(reaction.emoji) == str):
-		return"""
+	if (type(reaction.emoji) == str):
+		return
 
 	if (reaction.emoji.name == "Upvote"):
-		user_karma[reaction.message.channel.guild.id][reaction.message.author.id][len(user_karma[reaction.message.channel.guild.id][reaction.message.author.id]) - 1] -= 1
+		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
 		user_friendship[user.id] -= 1
 
 		if (reaction.message.reference is not None):
@@ -294,8 +301,8 @@ async def on_reaction_remove(reaction, user):
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] -= 1
 
 	if (reaction.emoji.name == "Downvote"):
+		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
 		user_friendship[user.id] += 1
-		user_karma[reaction.message.channel.guild.id][reaction.message.author.id][len(user_karma[reaction.message.channel.guild.id][reaction.message.author.id]) - 1] += 1
 
 @snoo.event
 async def on_voice_state_update(member, before, after):
@@ -340,22 +347,22 @@ async def yt_mp4(ctx, *, url):
 
 @snoo.command()
 async def poll(ctx, name, opt_a, opt_b, opt_c = "", opt_d = "", opt_e = "", opt_f = "", opt_g = "",):
-	embed = discord.Embed(title = f"{name}", description = "\u200b", colour = snoo_color)
-	embed.set_author(name=ctx.message.author.display_name, url=ctx.message.author.avatar_url, icon_url=ctx.message.author.avatar_url)
+	embed = discord.Embed(title = f"{name}", colour = snoo_color)
+	embed.set_author(name = "||  POLL", icon_url = poll_icon)
 
-	embed.add_field(name = f"<:A_:908477372397920316> {opt_a}", value = '\u200b', inline=False)
-	embed.add_field(name = f"<:B_:908477372637011968> {opt_b}", value = '\u200b', inline=False)
+	embed.add_field(name = f"Option  <:A_:908477372397920316>", value = opt_a, inline=False)
+	embed.add_field(name = f"Option  <:B_:908477372637011968>", value = opt_b, inline=False)
 
 	if (opt_c != ""):
-		embed.add_field(name = f"<:C_:908477373090000916> {opt_c}", value = '\u200b', inline=False)
+		embed.add_field(name = f"Option  <:C_:908477373090000916>", value = opt_c, inline=False)
 		if (opt_d != ""):
-			embed.add_field(name = f"<:D_:908477372607639572> {opt_d}", value = '\u200b', inline=False)
+			embed.add_field(name = f"Option  <:D_:908477372607639572>", value = opt_d, inline=False)
 			if (opt_e != ""):
-				embed.add_field(name = f"<:E_:908477372561506324> {opt_e}", value = '\u200b', inline=False)
+				embed.add_field(name = f"Option  <:E_:908477372561506324>", value = opt_e, inline=False)
 				if (opt_f != ""):
-					embed.add_field(name = f"<:F_:908477372511170620> {opt_f}", value = '\u200b', inline=False)
+					embed.add_field(name = f"Option  <:F_:908477372511170620>", value = opt_f, inline=False)
 					if (opt_g != ""):
-						embed.add_field(name = f"<:G_:908477372829949952> {opt_g}", value = '\u200b', inline=False)
+						embed.add_field(name = f"Option  <:G_:908477372829949952>", value = opt_g, inline=False)
 
 	poll = await ctx.send(embed=embed)
 
@@ -435,8 +442,8 @@ async def profile(ctx, *, user: discord.User = 123):
 		user_id = user.id
 
 	user = await snoo.fetch_user(user_id)
-	split_user = str(user).split("#", 1)
-	username = split_user[0]
+	#split_user = str(user).split("#", 1)
+	#username = split_user[0]
 
 	"""if (user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1] > 0):
 		color = 0xFF4400
@@ -446,7 +453,7 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	embed.set_author(name= "||  PROFILE", url=user.avatar_url, icon_url=user.avatar_url)
 
-	phrase = ""
+	#phrase = ""
 
 	"""if (user_id == ctx.message.author.id) :
 		phrase = f"You have: **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** karma"
@@ -543,7 +550,10 @@ def search_yt(search):
 	html_content = urllib.request.urlopen('http://www.youtube.com/results?' + query_string)
 	search_results = re.findall(r"watch\?v=(\S{11})", html_content.read().decode())
 
-	return 'http://www.youtube.com/watch?v=' + search_results[0]
+	if (len(search_results) > 0):
+		return 'http://www.youtube.com/watch?v=' + search_results[0]
+	else:
+		return "null"
 
 def format_time(secs):
 	hours, remainder = divmod(secs, 3600)
@@ -582,7 +592,12 @@ async def play(ctx, *, search = "null"):
 		if (validators.url(search) and "youtu" in search):
 			url = search
 		else:
-			url = search_yt(search)
+			result = search_yt(search)
+			if (result != "null"):
+				url = result
+			else:
+				await ctx.send("I wasn't able to find anything. Try something else?")
+				return
 	else:
 		msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 		if (len(find_url(msg.content)) >= 1):
@@ -591,7 +606,13 @@ async def play(ctx, *, search = "null"):
 				url = temp_url
 			else:
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
-				url = search_yt(msg.content)
+				result = search_yt(msg.content)
+				if (result != "null"):
+					url = result
+				else:
+					await ctx.send("I wasn't able to find anything. Try something else?")
+					await message.delete()
+					return
 		else:
 			if (len(msg.embeds) >= 1): 
 				print(msg.embeds[0].url)
@@ -609,14 +630,24 @@ async def play(ctx, *, search = "null"):
 				return
 			else:
 				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
-				url = search_yt(msg.content)
+				result = search_yt(msg.content)
+				if (result != "null"):
+					url = result
+				else:
+					await ctx.send("I wasn't able to find anything. Try something else?")
+					await message.delete()
+					return
 
 	info["queue"].append(url)
 
 	if (url not in info["video_info"]):
-		session = AsyncHTMLSession()
-		response = await session.get(url)
-		soup = bs(response.html.html, "html.parser")
+		#session = AsyncHTMLSession()
+		#response = await session.get(url)
+		hdr = {'User-Agent': 'Mozilla/5.0'}
+		req = Request(url, headers=hdr)
+		page = urlopen(req)
+		soup = bs(page)
+		#soup = bs(response.html.html, "html.parser")
 
 		if ("og:restrictions:age" in str(soup.find_all("meta"))):
 			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
@@ -631,9 +662,7 @@ async def play(ctx, *, search = "null"):
 		views = int(soup.find("meta", itemprop="interactionCount")['content'])
 
 		info["video_info"][url]["channel_link"] = "https://www.youtube.com/channel/" + soup.find("meta", itemprop="channelId")["content"]
-		channel_responce = await session.get(info["video_info"][url]["channel_link"])
-		channel_soup = bs(channel_responce.html.html, "html.parser")
-		info["video_info"][url]["channel_name"] = channel_soup.find("meta", itemprop="name")["content"]
+		info["video_info"][url]["channel_name"] = soup.find("span", itemprop="author").next.next['content']
 
 		info["video_info"][url]["thumbnail"] = soup.find("meta", {"name": "twitter:image"})['content']
 		
@@ -660,7 +689,7 @@ async def play(ctx, *, search = "null"):
 		embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
 
 		embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
-		embed.set_author(name = "||  QUEUED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+		embed.set_author(name = "||  QUEUED", icon_url=music_icon)
 
 		await ctx.send(embed=embed)
 
@@ -712,7 +741,7 @@ def nowplaying_embed():
 	embed=discord.Embed(title = info["video_info"][info["queue"][0]]["title"], url = info["queue"][0], description = f'by [{info["video_info"][info["queue"][0]]["channel_name"]}]({info["video_info"][info["queue"][0]]["channel_link"]})', color=snoo_color)
 
 	embed.set_thumbnail(url=info["video_info"][info["queue"][0]]["thumbnail"])
-	embed.set_author(name = "||  NOW PLAYING", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+	embed.set_author(name = "||  NOW PLAYING", icon_url=music_icon)
 
 	embed.add_field(name="Views:", value = info["video_info"][info["queue"][0]]["views"], inline=True)
 	embed.add_field(name="Upload Date:", value = info["video_info"][info["queue"][0]]["publish_date"], inline=True)
@@ -769,7 +798,7 @@ async def stop(ctx):
 		await info["voice"].disconnect()
 
 		embed=discord.Embed(title = "Have a nice day!", description = f"", color=snoo_color)
-		embed.set_author(name = "||  STOPPED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+		embed.set_author(name = "||  STOPPED", icon_url=music_icon)
 		await ctx.send(embed=embed)
 
 @snoo.command()
@@ -777,7 +806,7 @@ async def queue(ctx):
 	if (info["voice"].is_playing()):
 		if (len(info["queue"]) > 1):
 			embed=discord.Embed(title = "Now playing", description = "", color=snoo_color)
-			embed.set_author(name = "||  QUEUE", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+			embed.set_author(name = "||  QUEUE", icon_url=music_icon)
 			
 			songs = ""
 			durations = ""
@@ -829,7 +858,7 @@ async def check_if_song_ended(url, delay):
 			info["task"].cancel()
 
 			embed=discord.Embed(title = "Play something new!", description = f"", color=snoo_color)
-			embed.set_author(name = "||  QUEUE ENDED", icon_url="https://cdn.discordapp.com/attachments/908157040155832350/908157069989933127/snoo_music_icon.png")
+			embed.set_author(name = "||  QUEUE ENDED", icon_url=music_icon)
 			await info["channel"].send(embed=embed)
 
 			info["queue"].clear()
