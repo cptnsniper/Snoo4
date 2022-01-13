@@ -1,7 +1,7 @@
 from asyncio.tasks import wait
 from locale import Error
-from tracemalloc import start
-from turtle import end_fill
+#from tracemalloc import start
+#from turtle import end_fill
 import discord
 from discord import guild
 from discord import message
