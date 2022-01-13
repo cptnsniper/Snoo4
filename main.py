@@ -1,5 +1,7 @@
 from asyncio.tasks import wait
 from locale import Error
+from tracemalloc import start
+from turtle import end_fill
 import discord
 from discord import guild
 from discord import message
@@ -22,13 +24,14 @@ from typing import Union
 from cryptography.fernet import Fernet
 import random
 import urllib
-from urllib.request import Request, urlopen
+#from urllib.request import Request, urlopen
 import re
 from validators.url import url
 from youtube_dl import YoutubeDL
-from requests_html import AsyncHTMLSession 
+#from requests_html import AsyncHTMLSession 
 from bs4 import BeautifulSoup as bs
 import socket
+import requests
 #from decimal import Decimal
 
 #from bs4.builder import TreeBuilder
@@ -538,7 +541,7 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	os.remove("graph.png")
 
 #music
-info = {"queue": [], "paused": False, "voice": None, "channel": discord.channel, "task": None, "looping": False, "nowplaying": discord.message, "video_info": defaultdict(dict)}
+info = {"queue": [], "paused": False, "voice": None, "channel": discord.channel, "task": None, "looping": False, "autoplay": True, "nowplaying": discord.message, "video_info": defaultdict(dict)}
 
 def find_url(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
@@ -570,84 +573,110 @@ def format_time(secs):
 		return f"{minutes}:{seconds}"
 
 @snoo.command()
-async def play(ctx, *, search = "null"):
-	info["channel"] = ctx.channel
+async def play(ctx, *, search = "null", autoplay = "null"):
+	if (autoplay == "null"):
+		info["channel"] = ctx.channel
 	info["voice"] = get(snoo.voice_clients, guild = ctx.guild)
 	info["looping"] = False
 	message = None
 
-	if (type(ctx.message.author.voice) == type(None)):
-		await ctx.send("Make sure you're in a voice channel first!")
-		return
+	if (autoplay == "null"):
+		if (type(ctx.message.author.voice) == type(None)):
+			await ctx.send("Make sure you're in a voice channel first!")
+			return
 
-	channel = ctx.message.author.voice.channel
+		channel = ctx.message.author.voice.channel
 
-	if info["voice"] and info["voice"].is_connected():
-		await info["voice"].move_to(channel)
-	else:
-		info["voice"] = await channel.connect()
-
-	if (ctx.message.reference is None):
-		message = await ctx.send(f"Searching for `{search}` <a:Loading:908094681504706570>")
-		if (validators.url(search) and "youtu" in search):
-			url = search
+		if info["voice"] and info["voice"].is_connected():
+			await info["voice"].move_to(channel)
 		else:
-			result = search_yt(search)
-			if (result != "null"):
-				url = result
+			info["voice"] = await channel.connect()
+
+		if (ctx.message.reference is None):
+			message = await ctx.send(f"Searching for `{search}` <a:Loading:908094681504706570>")
+			if (validators.url(search) and "youtu" in search):
+				url = search
 			else:
-				await ctx.send("I wasn't able to find anything. Try something else?")
-				return
-	else:
-		msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-		if (len(find_url(msg.content)) >= 1):
-			temp_url = find_url(msg.content)[0]
-			if ("youtu" in temp_url):
-				url = temp_url
-			else:
-				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
-				result = search_yt(msg.content)
+				result = search_yt(search)
 				if (result != "null"):
 					url = result
 				else:
 					await ctx.send("I wasn't able to find anything. Try something else?")
-					await message.delete()
 					return
 		else:
-			if (len(msg.embeds) >= 1): 
-				print(msg.embeds[0].url)
-				if (str(msg.embeds[0].url) != "Embed.Empty"):
-					if ("youtu" in msg.embeds[0].url):
-						url = msg.embeds[0].url
+			msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+			if (len(find_url(msg.content)) >= 1):
+				temp_url = find_url(msg.content)[0]
+				if ("youtu" in temp_url):
+					url = temp_url
+				else:
+					message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
+					result = search_yt(msg.content)
+					if (result != "null"):
+						url = result
 					else:
-						await ctx.send("That's not a YouTube link, I'm unable to play it!")
+						await ctx.send("I wasn't able to find anything. Try something else?")
+						await message.delete()
 						return
-				else:		
+			else:
+				if (len(msg.embeds) >= 1): 
+					print(msg.embeds[0].url)
+					if (str(msg.embeds[0].url) != "Embed.Empty"):
+						if ("youtu" in msg.embeds[0].url):
+							url = msg.embeds[0].url
+						else:
+							await ctx.send("That's not a YouTube link, I'm unable to play it!")
+							return
+					else:		
+						await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
+						return
+				elif (msg.content == ""):
 					await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
 					return
-			elif (msg.content == ""):
-				await ctx.send("Sorry but I'm unable to understand what the content of that message is.")
-				return
-			else:
-				message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
-				result = search_yt(msg.content)
-				if (result != "null"):
-					url = result
 				else:
-					await ctx.send("I wasn't able to find anything. Try something else?")
-					await message.delete()
-					return
+					message = await ctx.send(f"Searching for `{msg.content}` <a:Loading:908094681504706570>")
+					result = search_yt(msg.content)
+					if (result != "null"):
+						url = result
+					else:
+						await ctx.send("I wasn't able to find anything. Try something else?")
+						await message.delete()
+						return
+	else:
+		url = autoplay
 
 	info["queue"].append(url)
 
 	if (url not in info["video_info"]):
 		#session = AsyncHTMLSession()
 		#response = await session.get(url)
-		hdr = {'User-Agent': 'Mozilla/5.0'}
+		#await response.html.arender()
+
+		"""hdr = {'User-Agent': 'Mozilla/5.0'}
 		req = Request(url, headers=hdr)
 		page = urlopen(req)
-		soup = bs(page)
-		#soup = bs(response.html.html, "html.parser")
+		soup = bs(page, 'html.parser')"""
+
+		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+		resp = requests.get(url,headers=headers)
+		soup = bs(resp.text,'html.parser')
+
+		str_soup = str(soup.findAll('script'))
+
+		start = ',"secondaryResults":{"secondaryResults":'
+		end = '},"autoplay":{"autoplay":'
+
+		st = str_soup.find(start) + len(start)
+		en = str_soup.find(end)
+
+		substring = str_soup[st:en]
+
+		secondary_results = json.loads(substring)
+
+		if ("compactVideoRenderer" in secondary_results["results"][0]):
+			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][0]["compactVideoRenderer"]["videoId"]
+		else:
+			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][1]["compactVideoRenderer"]["videoId"]
 
 		if ("og:restrictions:age" in str(soup.find_all("meta"))):
 			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
@@ -676,27 +705,31 @@ async def play(ctx, *, search = "null"):
 		
 		info["video_info"][url]["duration"] = format_time(secs + mins * 60)
 		info["video_info"][url]["secs_length"] = secs + mins * 60
+	
+	if (autoplay == "null"):
+		queued = False
 
-	queued = False
+		if (not info["voice"].is_playing() and not info["paused"]):
+			await play_url(url)
+			info["nowplaying"] = await ctx.send(embed = nowplaying_embed())
+			info["task"] = asyncio.create_task(async_timer(1, update_nowplaying))
+		else:
+			queued = True
 
-	if (not info["voice"].is_playing() and not info["paused"]):
-		await play_url(url)
-		info["nowplaying"] = await ctx.send(embed = nowplaying_embed())
-		info["task"] = asyncio.create_task(async_timer(1, update_nowplaying))
+			embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
+
+			embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
+			embed.set_author(name = "||  QUEUED", icon_url=music_icon)
+
+			await ctx.send(embed=embed)
+
+		if (message != None):
+			await message.delete()
+
+		if (not queued):
+			await check_if_song_ended(url, info["video_info"][url]["secs_length"])
 	else:
-		queued = True
-
-		embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
-
-		embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
-		embed.set_author(name = "||  QUEUED", icon_url=music_icon)
-
-		await ctx.send(embed=embed)
-
-	if (message != None):
-		await message.delete()
-
-	if (not queued):
+		await play_url(url, True)
 		await check_if_song_ended(url, info["video_info"][url]["secs_length"])
 
 async def play_url(url, display_ui = False):
@@ -766,16 +799,21 @@ async def nowplaying(ctx):
 	info["nowplaying"] = await ctx.send(embed = nowplaying_embed())
 
 async def update_nowplaying():
-	await info["nowplaying"].edit(embed = nowplaying_embed())
+	if (len(info["queue"]) > 0):
+		await info["nowplaying"].edit(embed = nowplaying_embed())
 
 async def play_next():
+	current_url = info["queue"][0]
+
 	if (not info["looping"]):
-		#info["queue"].append(info["queue"][0])
 		del info["queue"][0]
 
 	if (len(info["queue"]) > 0):
 		await play_url(info["queue"][0], not info["looping"])
 		await check_if_song_ended(info["queue"][0], info["video_info"][info["queue"][0]]["secs_length"] + 1)
+	elif (info["autoplay"]):
+		await play(info["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
+		print(info["queue"])
 
 """@snoo.command()
 async def pause(ctx):
@@ -839,7 +877,7 @@ async def queue(ctx):
 
 @snoo.command()
 async def skip(ctx):
-	if (len(info["queue"]) > 1):
+	if (len(info["queue"]) > 1 or info["autoplay"]):
 		await play_next()
 	else:
 		await ctx.send("This is the last song in queue, I have nothing to skip to!")
@@ -851,7 +889,7 @@ async def check_if_song_ended(url, delay):
 		return
 
 	if (url == info["queue"][0]):
-		if (len(info["queue"]) > 1 or info["looping"]):
+		if (len(info["queue"]) > 1 or info["looping"] or info["autoplay"]):
 			await play_next()
 		else:
 			await info["voice"].disconnect()
@@ -873,6 +911,16 @@ async def loop(ctx):
 		else:
 			info["looping"] = True
 			await ctx.send("I'll now loop the current song!")
+
+@snoo.command()
+async def autoplay(ctx):
+	if (info["voice"].is_playing()):
+		if (info["autoplay"]):
+			info["autoplay"] = False
+			await ctx.send("I'll no longer automaticaly play videos!")
+		else:
+			info["autoplay"] = True
+			await ctx.send("I'll do my best to choose an relevant video to play next!")
 
 @snoo.command()
 async def shuffle(ctx):
@@ -919,7 +967,7 @@ async def ping(ctx):
 	delay_ms = round(delay_ms, 2)
 	await ctx.send(str(delay_ms) + "ms")
 
-@snoo.command()
+"""@snoo.command()
 async def rehash(ctx, type = "normal"):
 	if (ctx.message.author.id == 401442600931950592):
 		guild = ctx.message.channel.guild
@@ -932,7 +980,7 @@ async def rehash(ctx, type = "normal"):
 
 		await ctx.message.add_reaction("✅")
 	else:
-		await ctx.send(admin_command_message)
+		await ctx.send(admin_command_message)"""
 
 #system
 @snoo.command()
