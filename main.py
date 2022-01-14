@@ -674,7 +674,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		"""with open("soup.txt", "w", encoding="utf-8") as f:
 			f.write(str_soup)"""
 
-		await ctx.send(file = discord.File("soup.txt"))
+		#await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
 
 		if ("compactVideoRenderer" in secondary_results["results"][0]):
