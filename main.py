@@ -672,7 +672,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		substring = str_soup[st:en]
 
 		with open("soup.txt", "w", encoding="utf-8") as f:
-			f.write(substring)
+			f.write(str_soup)
 
 		await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
