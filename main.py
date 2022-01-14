@@ -581,17 +581,6 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 	message = None
 
 	if (autoplay == "null"):
-		if (type(ctx.message.author.voice) == type(None)):
-			await ctx.send("Make sure you're in a voice channel first!")
-			return
-
-		channel = ctx.message.author.voice.channel
-
-		if info["voice"] and info["voice"].is_connected():
-			await info["voice"].move_to(channel)
-		else:
-			info["voice"] = await channel.connect()
-
 		if (ctx.message.reference is None):
 			message = await ctx.send(f"Searching for `{search}` <a:Loading:908094681504706570>")
 			if (validators.url(search) and "youtu" in search):
@@ -642,6 +631,17 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 						await ctx.send("I wasn't able to find anything. Try something else?")
 						await message.delete()
 						return
+
+		if (type(ctx.message.author.voice) == type(None)):
+			await ctx.send("Make sure you're in a voice channel first!")
+			return
+
+		channel = ctx.message.author.voice.channel
+
+		if info["voice"] and info["voice"].is_connected():
+			await info["voice"].move_to(channel)
+		else:
+			info["voice"] = await channel.connect()
 	else:
 		url = autoplay
 
@@ -671,6 +671,10 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 
 		substring = str_soup[st:en]
 
+		with open("soup.txt", "w", encoding="utf-8") as f:
+			f.write(substring)
+
+		await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
 
 		if ("compactVideoRenderer" in secondary_results["results"][0]):
@@ -878,6 +882,7 @@ async def queue(ctx):
 @snoo.command()
 async def skip(ctx):
 	if (len(info["queue"]) > 1 or info["autoplay"]):
+		info["channel"] = ctx.channel
 		await play_next()
 	else:
 		await ctx.send("This is the last song in queue, I have nothing to skip to!")
