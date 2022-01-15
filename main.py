@@ -48,6 +48,7 @@ snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 
 user_karma = defaultdict(dict)
 user_friendship = {}
 channel_messages = defaultdict(dict)
+user_messages = defaultdict(dict)
 users_in_vc = {}
 user_vc_time = defaultdict(dict)
 top_songs = defaultdict(dict)
@@ -55,10 +56,11 @@ top_songs = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.12"
+version = "0.4.13"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
+profile_icon = "https://media.discordapp.net/attachments/908157040155832350/931732724203520000/profile.png"
 
 @snoo.event
 async def on_ready():
@@ -73,13 +75,6 @@ async def on_ready():
 	#print(channel.guild.emojis)
 
 async def initialize_data():
-	#global user_karma_time
-	global user_friendship
-	global channel_messages
-	global user_karma
-	global users_in_vc
-	global user_vc_time
-
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
 
@@ -131,6 +126,14 @@ async def initialize_data():
 
 	str_users_in_vc = json.load(f)
 
+	user_message_channel = snoo.get_channel(931965551759228958)
+	async for message in user_message_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/user_messages.json")
+
+	f = open('Data Files/user_messages.json')
+
+	str_user_messages = json.load(f)
+
 	#convert dictionarys to int:
 	for key in str_karma_time:
 		for new_key in str_karma_time[key]:
@@ -151,27 +154,11 @@ async def initialize_data():
 			user_vc_time[int(key)][int(new_key)] = str_vc_time[key][new_key]
 
 	for key in str_top_songs:
-		for new_key in str_top_songs[key]:
-			top_songs[int(key)][new_key] = str_top_songs[key][new_key]
+		top_songs[int(key)] = str_top_songs[key]
 
-#dictionary updates
-"""@snoo.event
-async def on_member_join(member):
-	await add_members(member.guild)
-
-@snoo.event
-async def on_guild_join(guild):
-	await add_members(guild)
-
-async def add_members(guild):
-	#user_karma.clear()
-
-	members = guild.fetch_members()
-	async for m in members:
-		if not (m.id in user_karma[guild.id]):
-			user_karma[guild.id][m.id] = [1]
-		if not (m.id in user_friendship):
-			user_friendship[m.id] = 0"""
+	for key in str_user_messages:
+		for new_key in str_user_messages[key]:
+			user_messages[int(key)][int(new_key)] = str_user_messages[key][new_key]
 
 #message replys / simple polls
 @snoo.event
@@ -180,6 +167,11 @@ async def on_message(message):
 		channel_messages[message.guild.id][message.channel.id] = [1]
 	else:
 		channel_messages[message.guild.id][message.channel.id][len(channel_messages[message.guild.id][message.channel.id]) - 1] += 1
+
+	if (message.guild.id not in user_messages) or (message.author.id not in user_messages[message.guild.id]):
+		user_messages[message.guild.id][message.author.id] = [1]
+	elif (message.guild.id != 905495146890666005 and message.author.id != 864990652956540949):
+		user_messages[message.guild.id][message.author.id][len(user_messages[message.guild.id][message.author.id]) - 1] += 1
 	
 	#print(channel_messages)
 
@@ -445,30 +437,26 @@ async def profile(ctx, *, user: discord.User = 123):
 		user_id = user.id
 
 	user = await snoo.fetch_user(user_id)
-	#split_user = str(user).split("#", 1)
-	#username = split_user[0]
+	split_user = str(user).split("#", 1)
+	username = split_user[0]
 
-	"""if (user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1] > 0):
-		color = 0xFF4400
-	else:
-		color = 0x9293FF"""
+	if (ctx.guild.id not in user_karma) or (user_id not in user_karma[ctx.guild.id]):
+		user_karma[ctx.guild.id][user_id] = [0]
+	if (user_id not in user_friendship):
+		user_friendship[ctx.message.author.id] = 0
+	if (ctx.guild.id not in user_vc_time) or (user_id not in user_vc_time[ctx.guild.id]):
+		user_vc_time[ctx.guild.id][user_id] = [0]
+
 	embed = discord.Embed(colour=snoo_color)
 
-	embed.set_author(name= "||  PROFILE", url=user.avatar_url, icon_url=user.avatar_url)
+	embed.set_author(name = f"||  {username.upper()}'S PROFILE", icon_url = profile_icon)
 
-	#phrase = ""
-
-	"""if (user_id == ctx.message.author.id) :
-		phrase = f"You have: **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** karma"
-
-	elif (user_id == 864990652956540949):
-		phrase = f"I have: **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** karma"
-	else:
-		phrase = f"{username} has: **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** karma"""
-
-	embed.add_field(name = f"{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]} karma", value = '\u200b', inline = True)
-	embed.add_field(name = f"{user_friendship[user_id]} friendship", value = '\u200b', inline = True)
-	embed.add_field(name = f"{math.fsum(user_vc_time[ctx.guild.id][user_id])} VC hours", value = '\u200b', inline = False)
+	embed.add_field(name = "Karma:", value = f"earned **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** upvotes", inline = True)
+	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[user_id]}** karma to others", inline = True)
+	embed.add_field(name = "Messages:", value = f"sent **{sum(user_messages[ctx.guild.id][user_id])}** messages", inline = True)
+	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(user_vc_time[ctx.guild.id][user_id])}** hours in vc", inline = True)
 	
 	await ctx.send(embed=embed)
 
@@ -1010,6 +998,10 @@ def add_entry():
 		for user in user_vc_time[server]:
 			user_vc_time[server][user].append(0)
 
+	for server in user_messages:
+		for user in user_messages[server]:
+			user_messages[server][user].append(0)
+
 def check_time():
 	threading.Timer(60, check_time).start()
 
@@ -1030,20 +1022,13 @@ async def save(ctx):
 
 async def new_save():
 	print("Saving...")
-	global user_karma
-	global user_friendship
-	global channel_messages
-	global user_vc_time
 
 	for server in users_in_vc:
 		for user in users_in_vc[server]:
-			if (user not in user_vc_time[server]):
+			if (server not in user_vc_time or user not in user_vc_time[server]):
 				user_vc_time[server][user] = [0.1]
-				#user_vc_time[server][user] = round(user_vc_time[server][user], 1)
 			else:
-				#user_vc_time[server][user][len(user_vc_time[server][user]) - 1] += 0.1
 				user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1] + 0.1, 1)
-				#user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1], 1)
 
 	data_channel = snoo.get_channel(913524327775895563)
 	async for message in data_channel.history (limit = 1):
@@ -1098,6 +1083,15 @@ async def new_save():
 		json.dump(top_songs, outfile)
 
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
+
+	user_message_channel = snoo.get_channel(931965551759228958)
+	async for message in user_message_channel.history (limit = 1):
+		await message.delete()
+
+	with open("Data Files/user_messages.json", "w") as outfile:
+		json.dump(user_messages, outfile)
+
+	await user_message_channel.send(file=discord.File("Data Files/user_messages.json"))
 
 	print("Saved")
 
