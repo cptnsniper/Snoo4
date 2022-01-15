@@ -350,7 +350,7 @@ async def yt_mp4(ctx, *, url):
 
 @snoo.command()
 async def poll(ctx, name, opt_a, opt_b, opt_c = "", opt_d = "", opt_e = "", opt_f = "", opt_g = "",):
-	embed = discord.Embed(title = f"{name}", colour = snoo_color)
+	embed = discord.Embed(title = name, colour = snoo_color)
 	embed.set_author(name = "||  POLL", icon_url = poll_icon)
 
 	embed.add_field(name = f"Option  <:A_:908477372397920316>", value = opt_a, inline=False)
