@@ -24,6 +24,7 @@ from typing import Union
 from cryptography.fernet import Fernet
 import random
 import urllib
+from urllib.error import HTTPError
 #from urllib.request import Request, urlopen
 import re
 from validators.url import url
@@ -645,8 +646,19 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		page = urlopen(req)
 		soup = bs(page, 'html.parser')"""
 
-		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-		resp = requests.get(url,headers=headers)
+		resp = None
+
+		try:
+			headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+			resp = requests.get(url,headers=headers)
+		except HTTPError as e:
+			if e.code == 403:
+				print("retrying because of error 403")
+				headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+				resp = requests.get(url,headers=headers)
+
+		#headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+		#resp = requests.get(url,headers=headers)
 		soup = bs(resp.text,'html.parser')
 
 		str_soup = str(soup.findAll('script'))
