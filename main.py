@@ -647,14 +647,14 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		soup = bs(page, 'html.parser')"""
 
 		resp = None
+		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
 
 		try:
-			headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
 			resp = requests.get(url,headers=headers)
+			resp.raise_for_status()
 		except HTTPError as e:
 			if e.code == 403:
 				print("retrying because of error 403")
-				headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
 				resp = requests.get(url,headers=headers)
 
 		#headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
