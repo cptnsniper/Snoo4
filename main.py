@@ -754,11 +754,23 @@ async def play_url(url, display_ui = False):
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
 	if not info["voice"].is_playing():
-		with YoutubeDL(YDL_OPTIONS) as ydl:
-			vid = ydl.extract_info(url, download=False)
-		URL = vid['url']
+		try:
+			with YoutubeDL(YDL_OPTIONS) as ydl:
+				vid = ydl.extract_info(url, download=False)
+			URL = vid['url']
 
-		info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
+			info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
+
+		except HTTPError as e:
+			if e.code == 403:
+				print("retrying because of error 403")
+				
+				with YoutubeDL(YDL_OPTIONS) as ydl:
+					vid = ydl.extract_info(url, download=False)
+				URL = vid['url']
+
+				info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
+
 		info["voice"].is_playing()
 		info["start_time"] = datetime.datetime.now()
 
