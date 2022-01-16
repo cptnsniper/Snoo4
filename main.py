@@ -646,19 +646,8 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		page = urlopen(req)
 		soup = bs(page, 'html.parser')"""
 
-		resp = None
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-
-		try:
-			resp = requests.get(url,headers=headers)
-			resp.raise_for_status()
-		except HTTPError as e:
-			if e.code == 403:
-				print("retrying because of error 403")
-				resp = requests.get(url,headers=headers)
-
-		#headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-		#resp = requests.get(url,headers=headers)
+		resp = requests.get(url,headers=headers)
 		soup = bs(resp.text,'html.parser')
 
 		str_soup = str(soup.findAll('script'))
@@ -754,22 +743,11 @@ async def play_url(url, display_ui = False):
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
 	if not info["voice"].is_playing():
-		try:
-			with YoutubeDL(YDL_OPTIONS) as ydl:
-				vid = ydl.extract_info(url, download=False)
-			URL = vid['url']
+		with YoutubeDL(YDL_OPTIONS) as ydl:
+			vid = ydl.extract_info(url, download=False)
+		URL = vid['url']
 
-			info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
-
-		except HTTPError as e:
-			if e.code == 403:
-				print("retrying because of error 403")
-				
-				with YoutubeDL(YDL_OPTIONS) as ydl:
-					vid = ydl.extract_info(url, download=False)
-				URL = vid['url']
-
-				info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
+		info["voice"].play(FFmpegPCMAudio(source = URL, **FFMPEG_OPTIONS))
 
 		info["voice"].is_playing()
 		info["start_time"] = datetime.datetime.now()
@@ -816,7 +794,10 @@ async def nowplaying(ctx):
 
 async def update_nowplaying():
 	if (len(info["queue"]) > 0):
-		await info["nowplaying"].edit(embed = nowplaying_embed())
+		if (info["voice"].is_playing()):
+			await info["nowplaying"].edit(embed = nowplaying_embed())
+		else:
+			await play_url(info["queue"][0])
 
 async def play_next():
 	current_url = info["queue"][0]
