@@ -870,11 +870,14 @@ async def nowplaying(ctx):
 	info["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 
 async def update_nowplaying(guild):
-	if (len(info[guild]["queue"]) > 0):
-		if (info[guild]["voice"].is_playing()):
-			await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
-		else:
-			await play_url(guild, info[guild]["queue"][0])
+	try:
+		if (len(info[guild]["queue"]) > 0):
+			if (info[guild]["voice"].is_playing()):
+				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
+			else:
+				await play_url(guild, info[guild]["queue"][0])
+	except:
+		print("Update Failed")
 
 async def play_next(guild):
 	current_url = info[guild]["queue"][0]
