@@ -1,6 +1,7 @@
 from asyncio.tasks import wait
 from cmath import inf
-from distutils.log import info
+from distutils.log import debug, info
+from email.policy import default
 from locale import Error
 #from tracemalloc import start
 #from turtle import end_fill
@@ -50,7 +51,7 @@ snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 
 
 #data
 user_karma = defaultdict(dict)
-user_friendship = {}
+user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
 user_messages = defaultdict(dict)
 users_in_vc = {}
@@ -75,7 +76,7 @@ async def on_ready():
 	channel = snoo.get_channel(id=865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	asyncio.create_task(async_timer(1 * 6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
 	#print(channel.guild.emojis)
 
@@ -145,7 +146,8 @@ async def initialize_data():
 			user_karma[int(key)][int(new_key)] = str_karma_time[key][new_key]
 
 	for key in str_friendship:
-		user_friendship[int(key)] = str_friendship[key]
+		for new_key in str_friendship[key]:
+			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
 	for key in str_users_in_vc:
 		users_in_vc[int(key)] = str_users_in_vc[key]
@@ -281,10 +283,15 @@ async def on_reaction_add(reaction, user) :
 		else:
 			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
 
-		if (user.id not in user_friendship):
+		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
+			user_friendship[reaction.message.guild.id][user.id] = [1]
+		else:
+			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
+
+		"""if (user.id not in user_friendship):
 			user_friendship[user.id] = 1
 		else:
-			user_friendship[user.id] += 1
+			user_friendship[user.id] += 1"""
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = 5
@@ -307,10 +314,15 @@ async def on_reaction_add(reaction, user) :
 		else:
 			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
 
-		if (user.id not in user_friendship):
+		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
+			user_friendship[reaction.message.guild.id][user.id] = [-1]
+		else:
+			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
+
+		"""if (user.id not in user_friendship):
 			user_friendship[user.id] = -1
 		else:
-			user_friendship[user.id] -= 1
+			user_friendship[user.id] -= 1"""
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = -3
@@ -331,7 +343,8 @@ async def on_reaction_remove(reaction, user):
 
 	if (reaction.emoji.name == "Upvote"):
 		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
-		user_friendship[user.id] -= 1
+		#user_friendship[user.id] -= 1
+		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
 
 		user_candy[reaction.message.author.id] -= 3
 		user_candy[user.id] -= 1
@@ -343,7 +356,8 @@ async def on_reaction_remove(reaction, user):
 
 	if (reaction.emoji.name == "Downvote"):
 		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
-		user_friendship[user.id] += 1
+		#user_friendship[user.id] += 1
+		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
 
 		user_candy[reaction.message.author.id] += 2
 		user_candy[user.id] += 2
@@ -352,6 +366,8 @@ async def on_reaction_remove(reaction, user):
 async def on_voice_state_update(member, before, after):
 	if (not before.channel and after.channel):
 		#print(f'{member} has joined vc')
+		if (after.channel.guild.id not in users_in_vc):
+			users_in_vc[after.channel.guild.id] = []
 		if (member.id not in users_in_vc[after.channel.guild.id]):
 			users_in_vc[after.channel.guild.id].append(member.id)
 	elif (before.channel and not after.channel):
@@ -491,8 +507,8 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	if (ctx.guild.id not in user_karma) or (user_id not in user_karma[ctx.guild.id]):
 		user_karma[ctx.guild.id][user_id] = [0]
-	if (user_id not in user_friendship):
-		user_friendship[user_id] = 0
+	if (ctx.guild.id not in user_friendship) or (user_id not in user_friendship[ctx.guild.id]):
+		user_friendship[ctx.guild.id][user_id] = [0]
 	if (ctx.guild.id not in user_vc_time) or (user_id not in user_vc_time[ctx.guild.id]):
 		user_vc_time[ctx.guild.id][user_id] = [0]
 
@@ -502,7 +518,7 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	embed.add_field(name = "Karma:", value = f"earned **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** upvotes", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[user_id]}** karma to others", inline = True)
+	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[ctx.guild.id][user_id][len(user_friendship[ctx.guild.id][user_id]) - 1]}** karma to others", inline = True)
 	embed.add_field(name = "Messages:", value = f"sent **{sum(user_messages[ctx.guild.id][user_id])}** messages", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(user_vc_time[ctx.guild.id][user_id])}** hours in vc", inline = True)
@@ -870,11 +886,14 @@ async def nowplaying(ctx):
 	info["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 
 async def update_nowplaying(guild):
-	if (len(info[guild]["queue"]) > 0):
-		if (info[guild]["voice"].is_playing()):
-			await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
-		else:
-			await play_url(guild, info[guild]["queue"][0])
+	try:
+		if (len(info[guild]["queue"]) > 0):
+			if (info[guild]["voice"].is_playing()):
+				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
+			else:
+				await play_url(guild, info[guild]["queue"][0])
+	except:
+		print("Update Failed")
 
 async def play_next(guild):
 	current_url = info[guild]["queue"][0]
@@ -1070,6 +1089,10 @@ def add_entry():
 	for server in user_karma:
 		for user in user_karma[server]:
 			user_karma[server][user].append(user_karma[server][user][len(user_karma[server][user]) - 1])
+
+	for server in user_friendship:
+		for user in user_friendship[server]:
+			user_friendship[server][user].append(user_friendship[server][user][len(user_friendship[server][user]) - 1])
 
 	for server in channel_messages:
 		for channel in channel_messages[server]:
