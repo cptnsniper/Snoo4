@@ -406,39 +406,21 @@ async def yt_mp4(ctx, *, url):
 		await ctx.send("That's not a youtube url!")
 
 @snoo.command()
-async def poll(ctx, name, opt_a, opt_b, opt_c = "", opt_d = "", opt_e = "", opt_f = "", opt_g = "",):
+async def poll(ctx, name, *, opts):
+	emojis = ["<:A_:908477372397920316>", "<:B_:908477372637011968>", "<:C_:908477373090000916>", "<:D_:908477372607639572>", "<:E_:908477372561506324>", "<:F_:908477372511170620>", "<:G_:908477372829949952>"]
+	opts_list = opts.split(',')
+	
+
 	embed = discord.Embed(title = name, colour = snoo_color)
 	embed.set_author(name = "||  POLL", icon_url = poll_icon)
 
-	embed.add_field(name = f"Option  <:A_:908477372397920316>", value = opt_a, inline=False)
-	embed.add_field(name = f"Option  <:B_:908477372637011968>", value = opt_b, inline=False)
-
-	if (opt_c != ""):
-		embed.add_field(name = f"Option  <:C_:908477373090000916>", value = opt_c, inline=False)
-		if (opt_d != ""):
-			embed.add_field(name = f"Option  <:D_:908477372607639572>", value = opt_d, inline=False)
-			if (opt_e != ""):
-				embed.add_field(name = f"Option  <:E_:908477372561506324>", value = opt_e, inline=False)
-				if (opt_f != ""):
-					embed.add_field(name = f"Option  <:F_:908477372511170620>", value = opt_f, inline=False)
-					if (opt_g != ""):
-						embed.add_field(name = f"Option  <:G_:908477372829949952>", value = opt_g, inline=False)
+	for i in range(len(opts_list)):
+		embed.add_field(name = f"Option  {emojis[i]}", value = opts_list[i], inline=False)
 
 	poll = await ctx.send(embed=embed)
 
-	await poll.add_reaction("<:A_:908477372397920316>")
-	await poll.add_reaction("<:B_:908477372637011968>")
-
-	if (opt_c != ""):
-		await poll.add_reaction("<:C_:908477373090000916>")
-		if (opt_d != ""):
-			await poll.add_reaction("<:D_:908477372607639572>")
-			if (opt_e != ""):
-				await poll.add_reaction("<:E_:908477372561506324>")
-				if (opt_f != ""):
-					await poll.add_reaction("<:F_:908477372511170620>")
-					if (opt_g != ""):
-						await poll.add_reaction("<:G_:908477372829949952>")
+	for i in range(len(opts_list)):
+		await poll.add_reaction(emojis[i])
 
 @snoo.command()
 async def purge(ctx, amount = 0, embed = False, user: discord.User = 123):
@@ -476,16 +458,6 @@ async def purge(ctx, amount = 0, embed = False, user: discord.User = 123):
 async def user(ctx, *, user: discord.User):
 	username = await snoo.fetch_user(user.id)
 	await ctx.send(username)
-
-@snoo.command()
-async def remove(ctx, *, user: discord.User):
-	if (ctx.message.author.id == 401442600931950592):
-		user_karma[ctx.guild.id].pop(user.id, None)
-		#user_karma.pop(user.id, None)
-
-		await ctx.message.add_reaction("✅")
-	else:
-		await ctx.send(admin_command_message)
 
 @snoo.command()
 async def say(ctx, *, args):
@@ -646,6 +618,12 @@ def format_time(secs):
 		return f"{hours}:{minutes}:{seconds}"
 	else:
 		return f"{minutes}:{seconds}"
+
+@snoo.command()
+async def plays(ctx, *, searchs = "null"):
+	searchs_list = searchs.split(',')
+	for search in searchs_list:
+		await play(ctx, search = search)
 
 @snoo.command()
 async def play(ctx, *, search = "null", autoplay = "null"):
@@ -943,7 +921,9 @@ async def queue(ctx):
 			durations = ""
 			#channels = ""
 
-			for i in range(len(info[ctx.guild.id]["queue"])):
+			for i in range(20):
+				if (i + 1 > len(info[ctx.guild.id]["queue"]) > 1):
+					break
 				if (i == 0):
 					embed.add_field(name = f'<a:MusicBars:917119951603646505> {info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]}', value = info["video_info"][info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
 					embed.add_field(name = "Duration", value = info["video_info"][info[ctx.guild.id]["queue"][i]]["duration"], inline = True)
@@ -951,11 +931,16 @@ async def queue(ctx):
 
 					embed.set_thumbnail(url=info["video_info"][info[ctx.guild.id]["queue"][i]]["thumbnail"])
 				else:
-					songs += f"**{i}** " + info["video_info"][info[ctx.guild.id]["queue"][i]]["title"][0 : 45]
-					if (len(info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]) > 30):
-						songs += "...\n"
+					chr_per_row = 40
+					print(len(songs))
+					if (len(songs) < 1024 - chr_per_row):
+						songs += f"**{i}** " + info["video_info"][info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
+						if (len(info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
+							songs += "...\n"
+						else:
+							songs += "\n"
 					else:
-						songs += "\n"
+						break
 
 					#channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
 					durations += info["video_info"][info[ctx.guild.id]["queue"][i]]["duration"] + "\n"
@@ -1140,8 +1125,8 @@ async def new_save():
 				user_candy[user] += 1
 
 	data_channel = snoo.get_channel(913524327775895563)
-	async for message in data_channel.history (limit = 1):
-		await message.delete()
+	#async for message in data_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_karma.json", "w") as outfile:
 		json.dump(user_karma, outfile)
@@ -1149,8 +1134,8 @@ async def new_save():
 	await data_channel.send(file=discord.File("Data Files/user_karma.json"))
 
 	friend_channel = snoo.get_channel(913524431131918406)
-	async for message in friend_channel.history (limit = 1):
-		await message.delete()
+	#async for message in friend_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_friendship.json", "w") as outfile:
 		json.dump(user_friendship, outfile)
@@ -1158,8 +1143,8 @@ async def new_save():
 	await friend_channel.send(file=discord.File("Data Files/user_friendship.json"))
 
 	messages_channel = snoo.get_channel(913524223870398534)
-	async for message in messages_channel.history (limit = 1):
-		await message.delete()
+	#async for message in messages_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/channel_messages.json", "w") as outfile:
 		json.dump(channel_messages, outfile)
@@ -1167,8 +1152,8 @@ async def new_save():
 	await messages_channel.send(file=discord.File("Data Files/channel_messages.json"))
 
 	vc_channel = snoo.get_channel(917185952978468874)
-	async for message in vc_channel.history (limit = 1):
-		await message.delete()
+	#async for message in vc_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_vc_time.json", "w") as outfile:
 		json.dump(user_vc_time, outfile)
@@ -1176,8 +1161,8 @@ async def new_save():
 	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
 
 	user_vc_channel = snoo.get_channel(924786492872728616)
-	async for message in user_vc_channel.history (limit = 1):
-		await message.delete()
+	#async for message in user_vc_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/users_in_vc.json", "w") as outfile:
 		json.dump(users_in_vc, outfile)
@@ -1185,8 +1170,8 @@ async def new_save():
 	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
 	songs_channel = snoo.get_channel(922592622248341505)
-	async for message in songs_channel.history (limit = 1):
-		await message.delete()
+	#async for message in songs_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/top_songs.json", "w") as outfile:
 		json.dump(top_songs, outfile)
@@ -1194,8 +1179,8 @@ async def new_save():
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
 
 	user_message_channel = snoo.get_channel(931965551759228958)
-	async for message in user_message_channel.history (limit = 1):
-		await message.delete()
+	#async for message in user_message_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_messages.json", "w") as outfile:
 		json.dump(user_messages, outfile)
