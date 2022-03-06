@@ -3,6 +3,7 @@ from cmath import inf
 from distutils.log import debug, info
 from email.policy import default
 from locale import Error
+from urllib.parse import urldefrag
 #from tracemalloc import start
 #from turtle import end_fill
 import discord
@@ -586,8 +587,7 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	#plt.clf()
 	os.remove("graph.png")
 
-#music
-#default_vars = {"queue": [], "paused": False, "looping": False, "autoplay": True, "voice": "None"}
+# ------------------------------------- MUSIC -------------------------------------
 info = {"video_info": defaultdict(dict)}
 
 def find_url(string):
@@ -636,6 +636,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		info[ctx.guild.id]["paused"] = False
 		info[ctx.guild.id]["looping"] = False
 		info[ctx.guild.id]["autoplay"] = True
+		info[ctx.guild.id]["past queue"] = []
 		message = None
 
 		if (ctx.message.reference is None):
@@ -691,6 +692,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 
 		if (type(ctx.message.author.voice) == type(None)):
 			await ctx.send("Make sure you're in a voice channel first!")
+			await message.delete()
 			return
 
 		channel = ctx.message.author.voice.channel
@@ -737,10 +739,16 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		#await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
 
-		if ("compactVideoRenderer" in secondary_results["results"][0]):
-			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][0]["compactVideoRenderer"]["videoId"]
-		else:
-			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][1]["compactVideoRenderer"]["videoId"]
+		url = "http://www.youtube.com/watch?v=" + soup.find("meta", itemprop="videoId")["content"]
+
+		for i in range(5):
+			if ("compactVideoRenderer" in secondary_results["results"][i]):
+				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i]["compactVideoRenderer"]["videoId"]
+			else:
+				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i + 1]["compactVideoRenderer"]["videoId"]
+
+			if (info["video_info"][url]["recomended_vid"] not in info[ctx.guild.id]["past queue"]):
+				break
 
 		if ("og:restrictions:age" in str(soup.find_all("meta"))):
 			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
@@ -749,6 +757,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 				await ctx.send("Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!")
 				return
 
+		
 		info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
 		info["video_info"][url]["publish_date"] = soup.find("meta", itemprop="datePublished")["content"]
 		duration = soup.find("meta", itemprop="duration")["content"]
@@ -875,6 +884,7 @@ async def update_nowplaying(guild):
 
 async def play_next(guild):
 	current_url = info[guild]["queue"][0]
+	info[guild]["past queue"].append(current_url)
 
 	if (not info[guild]["looping"]):
 		del info[guild]["queue"][0]
