@@ -1,7 +1,9 @@
 from asyncio.tasks import wait
 from cmath import inf
-from distutils.log import info
+from distutils.log import debug, info
+from email.policy import default
 from locale import Error
+from urllib.parse import urldefrag
 #from tracemalloc import start
 #from turtle import end_fill
 import discord
@@ -50,7 +52,7 @@ snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 
 
 #data
 user_karma = defaultdict(dict)
-user_friendship = {}
+user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
 user_messages = defaultdict(dict)
 users_in_vc = {}
@@ -145,7 +147,8 @@ async def initialize_data():
 			user_karma[int(key)][int(new_key)] = str_karma_time[key][new_key]
 
 	for key in str_friendship:
-		user_friendship[int(key)] = str_friendship[key]
+		for new_key in str_friendship[key]:
+			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
 	for key in str_users_in_vc:
 		users_in_vc[int(key)] = str_users_in_vc[key]
@@ -281,10 +284,15 @@ async def on_reaction_add(reaction, user) :
 		else:
 			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
 
-		if (user.id not in user_friendship):
+		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
+			user_friendship[reaction.message.guild.id][user.id] = [1]
+		else:
+			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
+
+		"""if (user.id not in user_friendship):
 			user_friendship[user.id] = 1
 		else:
-			user_friendship[user.id] += 1
+			user_friendship[user.id] += 1"""
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = 5
@@ -307,10 +315,15 @@ async def on_reaction_add(reaction, user) :
 		else:
 			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
 
-		if (user.id not in user_friendship):
+		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
+			user_friendship[reaction.message.guild.id][user.id] = [-1]
+		else:
+			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
+
+		"""if (user.id not in user_friendship):
 			user_friendship[user.id] = -1
 		else:
-			user_friendship[user.id] -= 1
+			user_friendship[user.id] -= 1"""
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = -3
@@ -331,7 +344,8 @@ async def on_reaction_remove(reaction, user):
 
 	if (reaction.emoji.name == "Upvote"):
 		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
-		user_friendship[user.id] -= 1
+		#user_friendship[user.id] -= 1
+		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
 
 		user_candy[reaction.message.author.id] -= 3
 		user_candy[user.id] -= 1
@@ -343,7 +357,8 @@ async def on_reaction_remove(reaction, user):
 
 	if (reaction.emoji.name == "Downvote"):
 		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
-		user_friendship[user.id] += 1
+		#user_friendship[user.id] += 1
+		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
 
 		user_candy[reaction.message.author.id] += 2
 		user_candy[user.id] += 2
@@ -352,6 +367,8 @@ async def on_reaction_remove(reaction, user):
 async def on_voice_state_update(member, before, after):
 	if (not before.channel and after.channel):
 		#print(f'{member} has joined vc')
+		if (after.channel.guild.id not in users_in_vc):
+			users_in_vc[after.channel.guild.id] = []
 		if (member.id not in users_in_vc[after.channel.guild.id]):
 			users_in_vc[after.channel.guild.id].append(member.id)
 	elif (before.channel and not after.channel):
@@ -390,39 +407,21 @@ async def yt_mp4(ctx, *, url):
 		await ctx.send("That's not a youtube url!")
 
 @snoo.command()
-async def poll(ctx, name, opt_a, opt_b, opt_c = "", opt_d = "", opt_e = "", opt_f = "", opt_g = "",):
+async def poll(ctx, name, *, opts):
+	emojis = ["<:A_:908477372397920316>", "<:B_:908477372637011968>", "<:C_:908477373090000916>", "<:D_:908477372607639572>", "<:E_:908477372561506324>", "<:F_:908477372511170620>", "<:G_:908477372829949952>"]
+	opts_list = opts.split(',')
+	
+
 	embed = discord.Embed(title = name, colour = snoo_color)
 	embed.set_author(name = "||  POLL", icon_url = poll_icon)
 
-	embed.add_field(name = f"Option  <:A_:908477372397920316>", value = opt_a, inline=False)
-	embed.add_field(name = f"Option  <:B_:908477372637011968>", value = opt_b, inline=False)
-
-	if (opt_c != ""):
-		embed.add_field(name = f"Option  <:C_:908477373090000916>", value = opt_c, inline=False)
-		if (opt_d != ""):
-			embed.add_field(name = f"Option  <:D_:908477372607639572>", value = opt_d, inline=False)
-			if (opt_e != ""):
-				embed.add_field(name = f"Option  <:E_:908477372561506324>", value = opt_e, inline=False)
-				if (opt_f != ""):
-					embed.add_field(name = f"Option  <:F_:908477372511170620>", value = opt_f, inline=False)
-					if (opt_g != ""):
-						embed.add_field(name = f"Option  <:G_:908477372829949952>", value = opt_g, inline=False)
+	for i in range(len(opts_list)):
+		embed.add_field(name = f"Option  {emojis[i]}", value = opts_list[i], inline=False)
 
 	poll = await ctx.send(embed=embed)
 
-	await poll.add_reaction("<:A_:908477372397920316>")
-	await poll.add_reaction("<:B_:908477372637011968>")
-
-	if (opt_c != ""):
-		await poll.add_reaction("<:C_:908477373090000916>")
-		if (opt_d != ""):
-			await poll.add_reaction("<:D_:908477372607639572>")
-			if (opt_e != ""):
-				await poll.add_reaction("<:E_:908477372561506324>")
-				if (opt_f != ""):
-					await poll.add_reaction("<:F_:908477372511170620>")
-					if (opt_g != ""):
-						await poll.add_reaction("<:G_:908477372829949952>")
+	for i in range(len(opts_list)):
+		await poll.add_reaction(emojis[i])
 
 @snoo.command()
 async def purge(ctx, amount = 0, embed = False, user: discord.User = 123):
@@ -462,16 +461,6 @@ async def user(ctx, *, user: discord.User):
 	await ctx.send(username)
 
 @snoo.command()
-async def remove(ctx, *, user: discord.User):
-	if (ctx.message.author.id == 401442600931950592):
-		user_karma[ctx.guild.id].pop(user.id, None)
-		#user_karma.pop(user.id, None)
-
-		await ctx.message.add_reaction("✅")
-	else:
-		await ctx.send(admin_command_message)
-
-@snoo.command()
 async def say(ctx, *, args):
 	if (ctx.message.author.id == 401442600931950592):
 		await ctx.message.delete()
@@ -491,8 +480,8 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	if (ctx.guild.id not in user_karma) or (user_id not in user_karma[ctx.guild.id]):
 		user_karma[ctx.guild.id][user_id] = [0]
-	if (user_id not in user_friendship):
-		user_friendship[user_id] = 0
+	if (ctx.guild.id not in user_friendship) or (user_id not in user_friendship[ctx.guild.id]):
+		user_friendship[ctx.guild.id][user_id] = [0]
 	if (ctx.guild.id not in user_vc_time) or (user_id not in user_vc_time[ctx.guild.id]):
 		user_vc_time[ctx.guild.id][user_id] = [0]
 
@@ -502,7 +491,7 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	embed.add_field(name = "Karma:", value = f"earned **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** upvotes", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[user_id]}** karma to others", inline = True)
+	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[ctx.guild.id][user_id][len(user_friendship[ctx.guild.id][user_id]) - 1]}** karma to others", inline = True)
 	embed.add_field(name = "Messages:", value = f"sent **{sum(user_messages[ctx.guild.id][user_id])}** messages", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(user_vc_time[ctx.guild.id][user_id])}** hours in vc", inline = True)
@@ -598,8 +587,7 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	#plt.clf()
 	os.remove("graph.png")
 
-#music
-#default_vars = {"queue": [], "paused": False, "looping": False, "autoplay": True, "voice": "None"}
+# ------------------------------------- MUSIC -------------------------------------
 info = {"video_info": defaultdict(dict)}
 
 def find_url(string):
@@ -632,6 +620,12 @@ def format_time(secs):
 		return f"{minutes}:{seconds}"
 
 @snoo.command()
+async def plays(ctx, *, searchs = "null"):
+	searchs_list = searchs.split(',')
+	for search in searchs_list:
+		await play(ctx, search = search)
+
+@snoo.command()
 async def play(ctx, *, search = "null", autoplay = "null"):
 	if (autoplay == "null"):
 		if (ctx.guild.id not in info):
@@ -642,6 +636,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		info[ctx.guild.id]["paused"] = False
 		info[ctx.guild.id]["looping"] = False
 		info[ctx.guild.id]["autoplay"] = True
+		info[ctx.guild.id]["past queue"] = []
 		message = None
 
 		if (ctx.message.reference is None):
@@ -697,6 +692,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 
 		if (type(ctx.message.author.voice) == type(None)):
 			await ctx.send("Make sure you're in a voice channel first!")
+			await message.delete()
 			return
 
 		channel = ctx.message.author.voice.channel
@@ -743,10 +739,16 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		#await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
 
-		if ("compactVideoRenderer" in secondary_results["results"][0]):
-			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][0]["compactVideoRenderer"]["videoId"]
-		else:
-			info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][1]["compactVideoRenderer"]["videoId"]
+		url = "http://www.youtube.com/watch?v=" + soup.find("meta", itemprop="videoId")["content"]
+
+		for i in range(5):
+			if ("compactVideoRenderer" in secondary_results["results"][i]):
+				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i]["compactVideoRenderer"]["videoId"]
+			else:
+				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i + 1]["compactVideoRenderer"]["videoId"]
+
+			if (info["video_info"][url]["recomended_vid"] not in info[ctx.guild.id]["past queue"]):
+				break
 
 		if ("og:restrictions:age" in str(soup.find_all("meta"))):
 			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
@@ -755,6 +757,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 				await ctx.send("Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!")
 				return
 
+		
 		info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
 		info["video_info"][url]["publish_date"] = soup.find("meta", itemprop="datePublished")["content"]
 		duration = soup.find("meta", itemprop="duration")["content"]
@@ -881,6 +884,7 @@ async def update_nowplaying(guild):
 
 async def play_next(guild):
 	current_url = info[guild]["queue"][0]
+	info[guild]["past queue"].append(current_url)
 
 	if (not info[guild]["looping"]):
 		del info[guild]["queue"][0]
@@ -927,7 +931,9 @@ async def queue(ctx):
 			durations = ""
 			#channels = ""
 
-			for i in range(len(info[ctx.guild.id]["queue"])):
+			for i in range(20):
+				if (i + 1 > len(info[ctx.guild.id]["queue"]) > 1):
+					break
 				if (i == 0):
 					embed.add_field(name = f'<a:MusicBars:917119951603646505> {info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]}', value = info["video_info"][info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
 					embed.add_field(name = "Duration", value = info["video_info"][info[ctx.guild.id]["queue"][i]]["duration"], inline = True)
@@ -935,11 +941,16 @@ async def queue(ctx):
 
 					embed.set_thumbnail(url=info["video_info"][info[ctx.guild.id]["queue"][i]]["thumbnail"])
 				else:
-					songs += f"**{i}** " + info["video_info"][info[ctx.guild.id]["queue"][i]]["title"][0 : 45]
-					if (len(info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]) > 30):
-						songs += "...\n"
+					chr_per_row = 40
+					print(len(songs))
+					if (len(songs) < 1024 - chr_per_row):
+						songs += f"**{i}** " + info["video_info"][info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
+						if (len(info["video_info"][info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
+							songs += "...\n"
+						else:
+							songs += "\n"
 					else:
-						songs += "\n"
+						break
 
 					#channels += info["video_info"][info["queue"][i]]["channel_name"] + "\n"
 					durations += info["video_info"][info[ctx.guild.id]["queue"][i]]["duration"] + "\n"
@@ -1074,6 +1085,10 @@ def add_entry():
 		for user in user_karma[server]:
 			user_karma[server][user].append(user_karma[server][user][len(user_karma[server][user]) - 1])
 
+	for server in user_friendship:
+		for user in user_friendship[server]:
+			user_friendship[server][user].append(user_friendship[server][user][len(user_friendship[server][user]) - 1])
+
 	for server in channel_messages:
 		for channel in channel_messages[server]:
 			channel_messages[server][channel].append(0)
@@ -1120,8 +1135,8 @@ async def new_save():
 				user_candy[user] += 1
 
 	data_channel = snoo.get_channel(913524327775895563)
-	async for message in data_channel.history (limit = 1):
-		await message.delete()
+	#async for message in data_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_karma.json", "w") as outfile:
 		json.dump(user_karma, outfile)
@@ -1129,8 +1144,8 @@ async def new_save():
 	await data_channel.send(file=discord.File("Data Files/user_karma.json"))
 
 	friend_channel = snoo.get_channel(913524431131918406)
-	async for message in friend_channel.history (limit = 1):
-		await message.delete()
+	#async for message in friend_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_friendship.json", "w") as outfile:
 		json.dump(user_friendship, outfile)
@@ -1138,8 +1153,8 @@ async def new_save():
 	await friend_channel.send(file=discord.File("Data Files/user_friendship.json"))
 
 	messages_channel = snoo.get_channel(913524223870398534)
-	async for message in messages_channel.history (limit = 1):
-		await message.delete()
+	#async for message in messages_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/channel_messages.json", "w") as outfile:
 		json.dump(channel_messages, outfile)
@@ -1147,8 +1162,8 @@ async def new_save():
 	await messages_channel.send(file=discord.File("Data Files/channel_messages.json"))
 
 	vc_channel = snoo.get_channel(917185952978468874)
-	async for message in vc_channel.history (limit = 1):
-		await message.delete()
+	#async for message in vc_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_vc_time.json", "w") as outfile:
 		json.dump(user_vc_time, outfile)
@@ -1156,8 +1171,8 @@ async def new_save():
 	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
 
 	user_vc_channel = snoo.get_channel(924786492872728616)
-	async for message in user_vc_channel.history (limit = 1):
-		await message.delete()
+	#async for message in user_vc_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/users_in_vc.json", "w") as outfile:
 		json.dump(users_in_vc, outfile)
@@ -1165,8 +1180,8 @@ async def new_save():
 	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
 	songs_channel = snoo.get_channel(922592622248341505)
-	async for message in songs_channel.history (limit = 1):
-		await message.delete()
+	#async for message in songs_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/top_songs.json", "w") as outfile:
 		json.dump(top_songs, outfile)
@@ -1174,8 +1189,8 @@ async def new_save():
 	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
 
 	user_message_channel = snoo.get_channel(931965551759228958)
-	async for message in user_message_channel.history (limit = 1):
-		await message.delete()
+	#async for message in user_message_channel.history (limit = 1):
+		#await message.delete()
 
 	with open("Data Files/user_messages.json", "w") as outfile:
 		json.dump(user_messages, outfile)
