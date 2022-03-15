@@ -63,7 +63,7 @@ user_candy = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.20"
+version = "0.4.21 (nowplaying fix)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -890,6 +890,10 @@ async def play_next(guild):
 		await check_if_song_ended(guild, info[guild]["queue"][0], info["video_info"][info[guild]["queue"][0]]["secs_length"] + 1)
 	elif (info[guild]["autoplay"]):
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
+
+	info[guild]["task"].cancel()
+	info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
+
 
 """@snoo.command()
 async def pause(ctx):
