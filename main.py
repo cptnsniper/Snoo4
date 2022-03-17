@@ -63,7 +63,7 @@ user_candy = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.21 (nowplaying fix)"
+version = "0.4.22 (random fix)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -125,13 +125,13 @@ async def initialize_data():
 
 	str_vc_time = json.load(f)
 
-	user_vc_channel = snoo.get_channel(924786492872728616)
-	async for message in user_vc_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/users_in_vc.json")
+	#user_vc_channel = snoo.get_channel(924786492872728616)
+	#async for message in user_vc_channel.history (limit = 1):
+	#	await message.attachments[0].save("Data Files/users_in_vc.json")
 
-	f = open('Data Files/users_in_vc.json')
+	#f = open('Data Files/users_in_vc.json')
 
-	str_users_in_vc = json.load(f)
+	#str_users_in_vc = json.load(f)
 
 	user_message_channel = snoo.get_channel(931965551759228958)
 	async for message in user_message_channel.history (limit = 1):
@@ -150,8 +150,8 @@ async def initialize_data():
 		for new_key in str_friendship[key]:
 			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
-	for key in str_users_in_vc:
-		users_in_vc[int(key)] = str_users_in_vc[key]
+	#for key in str_users_in_vc:
+		#users_in_vc[int(key)] = str_users_in_vc[key]
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
@@ -185,7 +185,8 @@ async def on_message(message):
 	if (message.guild.id not in user_messages) or (message.author.id not in user_messages[message.guild.id]):
 		user_messages[message.guild.id][message.author.id] = [1]
 
-	elif (message.guild.id != 905495146890666005 and message.author != snoo.user):
+	#elif (message.guild.id != 905495146890666005 and message.author != snoo.user):
+	else:
 		user_messages[message.guild.id][message.author.id][len(user_messages[message.guild.id][message.author.id]) - 1] += 1
 
 	"""if (message.author.id not in user_candy):
@@ -1174,8 +1175,8 @@ async def new_save():
 	#async for message in user_vc_channel.history (limit = 1):
 		#await message.delete()
 
-	with open("Data Files/users_in_vc.json", "w") as outfile:
-		json.dump(users_in_vc, outfile)
+	#with open("Data Files/users_in_vc.json", "w") as outfile:
+		#json.dump(users_in_vc, outfile)
 
 	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
