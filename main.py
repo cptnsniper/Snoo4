@@ -14,7 +14,7 @@ from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
 from discord.ext.commands import CommandNotFound
-import ctypes
+#import ctypes
 import ctypes.util
 import os
 import validators
@@ -27,7 +27,7 @@ import pandas as pd
 from collections import defaultdict
 from typing import Union
 from cryptography.fernet import Fernet
-import random
+#import random
 import urllib
 from urllib.error import HTTPError
 #from urllib.request import Request, urlopen
@@ -63,7 +63,7 @@ user_candy = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.13"
+version = "0.4.23 (random fix fix)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -77,7 +77,7 @@ async def on_ready():
 	channel = snoo.get_channel(id=865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	asyncio.create_task(async_timer(6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
 	#print(channel.guild.emojis)
 
@@ -125,13 +125,13 @@ async def initialize_data():
 
 	str_vc_time = json.load(f)
 
-	user_vc_channel = snoo.get_channel(924786492872728616)
-	async for message in user_vc_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/users_in_vc.json")
+	#user_vc_channel = snoo.get_channel(924786492872728616)
+	#async for message in user_vc_channel.history (limit = 1):
+	#	await message.attachments[0].save("Data Files/users_in_vc.json")
 
-	f = open('Data Files/users_in_vc.json')
+	#f = open('Data Files/users_in_vc.json')
 
-	str_users_in_vc = json.load(f)
+	#str_users_in_vc = json.load(f)
 
 	user_message_channel = snoo.get_channel(931965551759228958)
 	async for message in user_message_channel.history (limit = 1):
@@ -150,8 +150,8 @@ async def initialize_data():
 		for new_key in str_friendship[key]:
 			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
-	for key in str_users_in_vc:
-		users_in_vc[int(key)] = str_users_in_vc[key]
+	#for key in str_users_in_vc:
+		#users_in_vc[int(key)] = str_users_in_vc[key]
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
@@ -185,7 +185,8 @@ async def on_message(message):
 	if (message.guild.id not in user_messages) or (message.author.id not in user_messages[message.guild.id]):
 		user_messages[message.guild.id][message.author.id] = [1]
 
-	elif (message.guild.id != 905495146890666005 and message.author != snoo.user):
+	#elif (message.guild.id != 905495146890666005 and message.author != snoo.user):
+	else:
 		user_messages[message.guild.id][message.author.id][len(user_messages[message.guild.id][message.author.id]) - 1] += 1
 
 	"""if (message.author.id not in user_candy):
@@ -377,21 +378,21 @@ async def on_voice_state_update(member, before, after):
 
 #utility
 @snoo.command()
-async def yt_mp3(ctx, *, url):
+async def yt_mp3(ctx, url, *, name = "video"):
 	if (validators.url(url) and "youtu" in url):
-		ydl_opts = {'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192',}], 'outtmpl': "video.mp3",}
+		ydl_opts = {'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192',}], 'outtmpl': name + ".mp3",}
 		with YoutubeDL(ydl_opts) as ydl:
 			msg = await ctx.send(f"Downloading <a:Loading:908094681504706570>")
 
 			ydl.download([url])
 
 			await msg.delete()
-			await ctx.send(file=discord.File('video.mp3'))
-			os.remove("video.mp3")
+			await ctx.send(file=discord.File(name + '.mp3'))
+			os.remove(name + ".mp3")
 	else:
 		await ctx.send("That's not a youtube url!")
 
-@snoo.command()
+"""@snoo.command()
 async def yt_mp4(ctx, *, url):
 	if (validators.url(url) and "youtu" in url):
 		ydl_opts = {'format': 'mp4', 'outtmpl': "video.mp4",}
@@ -404,7 +405,7 @@ async def yt_mp4(ctx, *, url):
 			await ctx.send(file=discord.File('video.mp4'))
 			os.remove("video.mp4")
 	else:
-		await ctx.send("That's not a youtube url!")
+		await ctx.send("That's not a youtube url!")"""
 
 @snoo.command()
 async def poll(ctx, name, *, opts):
@@ -704,11 +705,6 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 	else:
 		url = autoplay
 
-	if ("queue" not in info[ctx.guild.id]):
-		info[ctx.guild.id]["queue"] = [url]
-	else:
-		info[ctx.guild.id]["queue"].append(url)
-
 	if (url not in info["video_info"]):
 		#session = AsyncHTMLSession()
 		#response = await session.get(url)
@@ -738,8 +734,9 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 
 		#await ctx.send(file = discord.File("soup.txt"))
 		secondary_results = json.loads(substring)
-
+		
 		url = "http://www.youtube.com/watch?v=" + soup.find("meta", itemprop="videoId")["content"]
+		info["video_info"][url]["id"] = soup.find("meta", itemprop="videoId")["content"]
 
 		for i in range(5):
 			if ("compactVideoRenderer" in secondary_results["results"][i]):
@@ -778,6 +775,11 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		
 		info["video_info"][url]["duration"] = format_time(secs + mins * 60)
 		info["video_info"][url]["secs_length"] = secs + mins * 60
+
+	if ("queue" not in info[ctx.guild.id]):
+		info[ctx.guild.id]["queue"] = [url]
+	else:
+		info[ctx.guild.id]["queue"].append(url)
 	
 	if (autoplay == "null"):
 		queued = False
@@ -809,15 +811,10 @@ async def play_url(guild, url, display_ui = False):
 	if (info[guild]["voice"].is_playing()):
 		info[guild]["voice"].stop()
 
-	if ("watch?v=" in url):
-		song_url = url.split("watch?v=",1)[1]
-	elif ("youtu.be" in url):
-		song_url = url.split("be/",1)[1]
-
-	if (song_url not in top_songs[guild]):
-		top_songs[guild][song_url] = 1
+	if (info["video_info"][url]["id"] not in top_songs[guild]):
+		top_songs[guild][info["video_info"][url]["id"]] = 1
 	else:
-		top_songs[guild][song_url] += 1
+		top_songs[guild][info["video_info"][url]["id"]] += 1
 
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -894,6 +891,10 @@ async def play_next(guild):
 		await check_if_song_ended(guild, info[guild]["queue"][0], info["video_info"][info[guild]["queue"][0]]["secs_length"] + 1)
 	elif (info[guild]["autoplay"]):
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
+
+	info[guild]["task"].cancel()
+	info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
+
 
 """@snoo.command()
 async def pause(ctx):
