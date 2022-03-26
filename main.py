@@ -63,7 +63,11 @@ user_candy = defaultdict(dict)
 #global variables
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
+<<<<<<< HEAD
 version = "0.4.23 (random fix fix)"
+=======
+version = "0.4.22 (random fix)"
+>>>>>>> 32f8de5d1323b80fe7b877fdddffc46f6d1bec5d
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -1175,8 +1179,8 @@ async def new_save():
 	#async for message in user_vc_channel.history (limit = 1):
 		#await message.delete()
 
-	with open("Data Files/users_in_vc.json", "w") as outfile:
-		json.dump(users_in_vc, outfile)
+	#with open("Data Files/users_in_vc.json", "w") as outfile:
+		#json.dump(users_in_vc, outfile)
 
 	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
