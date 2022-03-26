@@ -125,13 +125,13 @@ async def initialize_data():
 
 	str_vc_time = json.load(f)
 
-	#user_vc_channel = snoo.get_channel(924786492872728616)
-	#async for message in user_vc_channel.history (limit = 1):
-	#	await message.attachments[0].save("Data Files/users_in_vc.json")
+	user_vc_channel = snoo.get_channel(924786492872728616)
+	async for message in user_vc_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/users_in_vc.json")
 
-	#f = open('Data Files/users_in_vc.json')
+	f = open('Data Files/users_in_vc.json')
 
-	#str_users_in_vc = json.load(f)
+	str_users_in_vc = json.load(f)
 
 	user_message_channel = snoo.get_channel(931965551759228958)
 	async for message in user_message_channel.history (limit = 1):
