@@ -4,8 +4,6 @@ from distutils.log import debug, info
 from email.policy import default
 from locale import Error
 from urllib.parse import urldefrag
-#from tracemalloc import start
-#from turtle import end_fill
 import discord
 from discord import guild
 from discord import message
@@ -14,7 +12,6 @@ from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
 from discord.ext.commands import CommandNotFound
-#import ctypes
 import ctypes.util
 import os
 import validators
@@ -27,30 +24,23 @@ import pandas as pd
 from collections import defaultdict
 from typing import Union
 from cryptography.fernet import Fernet
-#import random
 import urllib
 from urllib.error import HTTPError
-#from urllib.request import Request, urlopen
 import re
 from validators.url import url
 from youtube_dl import YoutubeDL
-#from requests_html import AsyncHTMLSession 
 from bs4 import BeautifulSoup as bs
 import socket
 import requests
-#from decimal import Decimal
-
-#from bs4.builder import TreeBuilder
-#from bs4.element import nonwhitespace_re
-
 import plotly.express as px
 
 intents = discord.Intents.default()
 intents.presences = True
 intents.members = True
-snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo '], intents=intents)
+snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo '], intents=intents)
 
-#data
+# _________________________________________________________________ DATA _________________________________________________________________
+
 user_karma = defaultdict(dict)
 user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
@@ -59,15 +49,19 @@ users_in_vc = {}
 user_vc_time = defaultdict(dict)
 top_songs = defaultdict(dict)
 user_candy = defaultdict(dict)
+server_awards = defaultdict(dict)
+user_awards = defaultdict(dict)
 
-#global variables
+# _________________________________________________________________ GLOBAL VARS _________________________________________________________________
+
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.23 (random fix fix)"
+version = "0.4.24 (awards)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
 profile_icon = "https://media.discordapp.net/attachments/908157040155832350/931732724203520000/profile.png"
+award_icon = "https://cdn.discordapp.com/attachments/908157040155832350/958841770765066280/award_icon.png"
 
 @snoo.event
 async def on_ready():
@@ -79,7 +73,6 @@ async def on_ready():
 	await initialize_data()
 	asyncio.create_task(async_timer(60 * 6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
-	#print(channel.guild.emojis)
 
 async def initialize_data():
 	if (not os.path.isdir('Data Files')):
@@ -141,6 +134,22 @@ async def initialize_data():
 
 	str_user_messages = json.load(f)
 
+	server_awards_channel = snoo.get_channel(959590449952194621)
+	async for message in server_awards_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/server_awards.json")
+
+	f = open('Data Files/server_awards.json')
+
+	str_server_awards = json.load(f)
+
+	user_awards_channel = snoo.get_channel(959590569137541170)
+	async for message in user_awards_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/user_awards.json")
+
+	f = open('Data Files/user_awards.json')
+
+	str_user_awards = json.load(f)
+
 	#convert dictionarys to int:
 	for key in str_karma_time:
 		for new_key in str_karma_time[key]:
@@ -150,8 +159,8 @@ async def initialize_data():
 		for new_key in str_friendship[key]:
 			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
-	#for key in str_users_in_vc:
-		#users_in_vc[int(key)] = str_users_in_vc[key]
+	for key in str_users_in_vc:
+		users_in_vc[int(key)] = str_users_in_vc[key]
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
@@ -168,13 +177,24 @@ async def initialize_data():
 		for new_key in str_user_messages[key]:
 			user_messages[int(key)][int(new_key)] = str_user_messages[key][new_key]
 
+	for key in str_server_awards:
+			server_awards[int(key)] = str_server_awards[key]
+
+	for key in str_user_awards:
+		for new_key in str_user_awards[key]:
+			user_awards[int(key)][int(new_key)] = str_user_awards[key][new_key]
+
+	print(server_awards)
+	print(user_awards)
+
 @snoo.event
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
         return
     raise error
 
-#message replys / simple polls
+# _________________________________________________________________ ON MESSAGE _________________________________________________________________
+
 @snoo.event
 async def on_message(message):
 	if (message.guild.id not in channel_messages) or (message.channel.id not in channel_messages[message.guild.id]):
@@ -376,7 +396,8 @@ async def on_voice_state_update(member, before, after):
 		#print(f'{member} has left vc')
 		users_in_vc[before.channel.guild.id].remove(member.id)
 
-#utility
+# _________________________________________________________________ UTILITY _________________________________________________________________
+
 @snoo.command()
 async def yt_mp3(ctx, url, *, name = "video"):
 	if (validators.url(url) and "youtu" in url):
@@ -521,6 +542,88 @@ async def candy(ctx, *, user: discord.User = 123):
 	await ctx.send(embed = embed)
 
 @snoo.command()
+async def award(ctx, command = "none", arg1: Union[str, discord.User] = "none", arg2: Union[str, discord.User] = "none", arg3 = "none"):
+	if (command == "create"):
+		server_awards[ctx.guild.id][arg1] = {"desc": arg2 , "image_link": arg3}
+
+		embed = discord.Embed(title = arg1, description = server_awards[ctx.guild.id][arg1]["desc"], color = snoo_color)
+		embed.set_author(name = f"||  AWARD", icon_url = award_icon)
+		if (validators.url(server_awards[ctx.guild.id][arg1]["image_link"])):
+			embed.set_image(url = server_awards[ctx.guild.id][arg1]["image_link"])
+
+		await ctx.send("Got it! Here's what it looks like:", embed = embed)
+
+	elif (command == "give"):
+		arg2 = re.search('!(.*)>', arg2).group(1)
+		user = await snoo.fetch_user(arg2)
+		split_user = str(user).split("#", 1)
+		username = split_user[0]
+		arg2 = int(arg2)
+
+		if (arg1 in server_awards[ctx.guild.id]):
+			if (ctx.guild.id not in user_awards) or (arg2 not in user_awards[ctx.guild.id]):
+				user_awards[ctx.guild.id][arg2] = {arg1: 1}
+			else:
+				if (arg1 in user_awards[ctx.guild.id][arg2]):
+					user_awards[ctx.guild.id][arg2][arg1] += 1
+				else:
+					user_awards[ctx.guild.id][arg2][arg1] = 1
+
+			await ctx.send(f"Gave {username} the award `{arg1}`, they now have **{user_awards[ctx.guild.id][arg2][arg1]}**")
+		else:
+			#await ctx.send(f"You've never made an award called `{arg1}`, would you like me to make one?")
+			await ctx.send(f"You've never made an award called `{arg1}`, use the `create` command to make it first!")
+	
+	elif (command == "edit"):
+		if (ctx.guild.id not in server_awards) or (arg1 not in server_awards[ctx.guild.id]):
+			await ctx.send(f"The award `{arg1}` does not exist, use the `create` command to make it first!")
+		else:
+			server_awards[ctx.guild.id][arg1] = {"desc": arg2 , "image_link": arg3}
+
+		embed = discord.Embed(title = arg1, description = server_awards[ctx.guild.id][arg1]["desc"], color = snoo_color)
+		embed.set_author(name = f"||  AWARD", icon_url = award_icon)
+		if (validators.url(server_awards[ctx.guild.id][arg1]["image_link"])):
+			embed.set_image(url = server_awards[ctx.guild.id][arg1]["image_link"])
+
+		await ctx.send("Here's your edited award!", embed = embed)
+
+	elif (command == "list"):
+		embed = discord.Embed(color = snoo_color)
+		embed.set_author(name = f"||  AWARDS ON {ctx.guild.name.upper()}", icon_url = award_icon)
+
+		for award in server_awards[ctx.guild.id]:
+			embed.add_field(name = award, value = server_awards[ctx.guild.id][award]["desc"], inline = False)
+
+		await ctx.send(embed = embed)
+
+	elif (command == "profile"):
+		if (arg1 == "none"):
+			user_id = ctx.message.author.id
+		else:
+			user_id = re.search('!(.*)>', arg1).group(1)
+
+		user_id = int(user_id)
+
+		arg1 = await snoo.fetch_user(user_id)
+		split_user = str(arg1).split("#", 1)
+		username = split_user[0]
+		
+		if (user_id not in user_awards[ctx.guild.id]):
+			await ctx.send(f"{username} currently doesn't have any awards!")
+		else:
+			embed = discord.Embed(colour=snoo_color)
+
+			embed.set_author(name = f"||  {username.upper()}'S AWARDS", icon_url = profile_icon)
+
+			for award in user_awards[ctx.guild.id][user_id]:
+				embed.add_field(name = f"{award} x{user_awards[ctx.guild.id][user_id][award]}", value = server_awards[ctx.guild.id][award]["desc"], inline = False)
+			
+			await ctx.send(embed = embed)
+
+	else:
+		await ctx.send(f"Command `{command}` not found!")
+	
+@snoo.command()
 async def top(ctx, length = "length"):
 	if (length == "length"):
 		length = 3
@@ -577,7 +680,7 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 
 	#layout = Layout(plot_bgcolor='rgb(47,49,54)')
 
-	fig = px.line(df, markers=True, template = "seaborn")
+	fig = px.line(df, markers=False, template = "seaborn")
 	fig['data'][0]['line']['color']="#FF4400"
 	#fig.update_layout(paper_bgcolor="#2f3136")
 	fig.write_image("graph.png")
@@ -588,7 +691,8 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	#plt.clf()
 	os.remove("graph.png")
 
-# ------------------------------------- MUSIC -------------------------------------
+# _________________________________________________________________ MUSIC _________________________________________________________________
+
 info = {"video_info": defaultdict(dict)}
 
 def find_url(string):
@@ -1071,7 +1175,8 @@ async def rehash(ctx, type = "normal"):
 	else:
 		await ctx.send(admin_command_message)"""
 
-#system
+# _________________________________________________________________ SYSTEM _________________________________________________________________
+
 @snoo.command()
 async def add(ctx):
 	if (ctx.message.author.id == 401442600931950592):
@@ -1198,6 +1303,20 @@ async def new_save():
 
 	await user_message_channel.send(file=discord.File("Data Files/user_messages.json"))
 
+	server_awards_channel = snoo.get_channel(959590449952194621)
+
+	with open("Data Files/server_awards.json", "w") as outfile:
+		json.dump(server_awards, outfile)
+
+	await server_awards_channel.send(file=discord.File("Data Files/server_awards.json"))
+
+	user_awards_channel = snoo.get_channel(959590569137541170)
+
+	with open("Data Files/user_awards.json", "w") as outfile:
+		json.dump(user_awards, outfile)
+
+	await user_awards_channel.send(file=discord.File("Data Files/user_awards.json"))
+
 	print("Saved")
 
 async def async_timer(timeout, func, arg = None):
@@ -1208,8 +1327,8 @@ async def async_timer(timeout, func, arg = None):
 		else:
 			await func(arg)
 
+# _________________________________________________________________ RUN _________________________________________________________________
 
-#run snoo
 check_time()
 
 with open('Token/filekey.key', 'rb') as filekey:
