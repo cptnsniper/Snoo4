@@ -3,7 +3,7 @@ from cmath import inf
 from distutils.log import debug, info
 from email.policy import default
 from locale import Error
-from urllib.parse import urldefrag
+from urllib.parse import DefragResult, urldefrag
 import discord
 from discord import guild
 from discord import message
@@ -47,7 +47,8 @@ channel_messages = defaultdict(dict)
 user_messages = defaultdict(dict)
 users_in_vc = {}
 user_vc_time = defaultdict(dict)
-top_songs = defaultdict(dict)
+#top_songs = defaultdict(dict)
+song_history = defaultdict(dict)
 user_candy = defaultdict(dict)
 server_awards = defaultdict(dict)
 user_awards = defaultdict(dict)
@@ -56,7 +57,7 @@ user_awards = defaultdict(dict)
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.24 (awards)"
+version = "0.4.25 (song tracking for future update)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -102,13 +103,13 @@ async def initialize_data():
 
 	str_messages = json.load(f)
 
-	songs_channel = snoo.get_channel(922592622248341505)
-	async for message in songs_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/top_songs.json")
+	history_channel = snoo.get_channel(922592622248341505)
+	async for message in history_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/song_history.json")
 
-	f = open('Data Files/top_songs.json')
+	f = open('Data Files/song_history.json')
 
-	str_top_songs = json.load(f)
+	str_history = json.load(f)
 
 	vc_channel = snoo.get_channel(917185952978468874)
 	async for message in vc_channel.history (limit = 1):
@@ -170,8 +171,9 @@ async def initialize_data():
 		for new_key in str_vc_time[key]:
 			user_vc_time[int(key)][int(new_key)] = str_vc_time[key][new_key]
 
-	for key in str_top_songs:
-		top_songs[int(key)] = str_top_songs[key]
+
+	for guild in (str_history):
+		song_history[int(guild)] = str_history[guild]
 
 	for key in str_user_messages:
 		for new_key in str_user_messages[key]:
@@ -183,9 +185,6 @@ async def initialize_data():
 	for key in str_user_awards:
 		for new_key in str_user_awards[key]:
 			user_awards[int(key)][int(new_key)] = str_user_awards[key][new_key]
-
-	print(server_awards)
-	print(user_awards)
 
 @snoo.event
 async def on_command_error(ctx, error):
@@ -753,7 +752,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 				if (result != "null"):
 					url = result
 				else:
-					await ctx.send("I wasn't able to find anything. Try something else?")
+					await message.edit(content = "I wasn't able to find anything. Try something else?")
 					return
 		else:
 			msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -767,8 +766,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 					if (result != "null"):
 						url = result
 					else:
-						await ctx.send("I wasn't able to find anything. Try something else?")
-						await message.delete()
+						await message.edit(content = "I wasn't able to find anything. Try something else?")
 						return
 			else:
 				if (len(msg.embeds) >= 1): 
@@ -791,8 +789,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 					if (result != "null"):
 						url = result
 					else:
-						await ctx.send("I wasn't able to find anything. Try something else?")
-						await message.delete()
+						await message.edit(content = "I wasn't able to find anything. Try something else?")
 						return
 
 		if (type(ctx.message.author.voice) == type(None)):
@@ -891,6 +888,8 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		if (not info[ctx.guild.id]["voice"].is_playing() and not info[ctx.guild.id]["paused"]):
 			await play_url(ctx.guild.id, url)
 			info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, url))
+			if (message != None):
+				await message.delete()
 			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
 		else:
 			queued = True
@@ -900,10 +899,10 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 			embed.set_thumbnail(url=info["video_info"][url]["thumbnail"])
 			embed.set_author(name = "||  QUEUED", icon_url=music_icon)
 
-			await ctx.send(embed=embed)
+			#await ctx.send(embed=embed)
 
-		if (message != None):
-			await message.delete()
+			if (message != None):
+				await message.edit(content="", embed = embed)
 
 		if (not queued):
 			await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
@@ -915,10 +914,12 @@ async def play_url(guild, url, display_ui = False):
 	if (info[guild]["voice"].is_playing()):
 		info[guild]["voice"].stop()
 
-	if (info["video_info"][url]["id"] not in top_songs[guild]):
-		top_songs[guild][info["video_info"][url]["id"]] = 1
+	if (guild not in song_history):
+		song_history[guild] = []
+	if (info["video_info"][url]["id"] not in song_history[guild][max(0, len(song_history[guild]) - 1)]):
+		song_history[guild][max(0, len(song_history[guild]) - 1)][info["video_info"][url]["id"]] = 1
 	else:
-		top_songs[guild][info["video_info"][url]["id"]] += 1
+		song_history[guild][max(0, len(song_history[guild]) - 1)][info["video_info"][url]["id"]] += 1
 
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -1207,6 +1208,9 @@ def add_entry():
 		for user in user_messages[server]:
 			user_messages[server][user].append(0)
 
+	for server in song_history:
+		song_history[server].append({})
+
 def check_time():
 	threading.Timer(60, check_time).start()
 
@@ -1280,8 +1284,8 @@ async def new_save():
 	#async for message in user_vc_channel.history (limit = 1):
 		#await message.delete()
 
-	#with open("Data Files/users_in_vc.json", "w") as outfile:
-		#json.dump(users_in_vc, outfile)
+	with open("Data Files/users_in_vc.json", "w") as outfile:
+		json.dump(users_in_vc, outfile)
 
 	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
 
@@ -1289,10 +1293,10 @@ async def new_save():
 	#async for message in songs_channel.history (limit = 1):
 		#await message.delete()
 
-	with open("Data Files/top_songs.json", "w") as outfile:
-		json.dump(top_songs, outfile)
+	with open("Data Files/song_history.json", "w") as outfile:
+		json.dump(song_history, outfile)
 
-	await songs_channel.send(file=discord.File("Data Files/top_songs.json"))
+	await songs_channel.send(file=discord.File("Data Files/song_history.json"))
 
 	user_message_channel = snoo.get_channel(931965551759228958)
 	#async for message in user_message_channel.history (limit = 1):
