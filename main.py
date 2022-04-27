@@ -1,4 +1,5 @@
 from asyncio.tasks import wait
+from cgi import print_arguments
 from cmath import inf
 from distutils.log import debug, info
 from email.policy import default
@@ -57,7 +58,7 @@ user_awards = defaultdict(dict)
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.25 (song tracking for future update)"
+version = "0.4.26 (random music fixes)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -883,7 +884,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		info[ctx.guild.id]["queue"].append(url)
 	
 	if (autoplay == "null"):
-		queued = False
+		#queued = False
 
 		if (not info[ctx.guild.id]["voice"].is_playing() and not info[ctx.guild.id]["paused"]):
 			await play_url(ctx.guild.id, url)
@@ -892,7 +893,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 				await message.delete()
 			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
 		else:
-			queued = True
+			#queued = True
 
 			embed=discord.Embed(title = info["video_info"][url]["title"], url = url, description = f'by [{info["video_info"][url]["channel_name"]}]({info["video_info"][url]["channel_link"]})', color=snoo_color)
 
@@ -904,11 +905,11 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 			if (message != None):
 				await message.edit(content="", embed = embed)
 
-		if (not queued):
-			await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
+		#if (not queued):
+			#await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
 	else:
 		await play_url(ctx.guild.id, url, True)
-		await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
+		#await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
 
 async def play_url(guild, url, display_ui = False):
 	if (info[guild]["voice"].is_playing()):
@@ -972,15 +973,17 @@ def nowplaying_embed(guild, url):
 
 @snoo.command()
 async def nowplaying(ctx):
-	info["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
+	await info[ctx.guild.id]["nowplaying"].delete()
+	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 
 async def update_nowplaying(guild):
 	try:
 		if (len(info[guild]["queue"]) > 0):
 			if (info[guild]["voice"].is_playing()):
 				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
-			else:
+			elif (not await check_if_song_ended(guild)):
 				await play_url(guild, info[guild]["queue"][0])
+		
 	except:
 		print("Update Failed")
 
@@ -993,7 +996,7 @@ async def play_next(guild):
 
 	if (len(info[guild]["queue"]) > 0):
 		await play_url(guild, info[guild]["queue"][0], not info[guild]["looping"])
-		await check_if_song_ended(guild, info[guild]["queue"][0], info["video_info"][info[guild]["queue"][0]]["secs_length"] + 1)
+		#await check_if_song_ended(guild, info[guild]["queue"][0], info["video_info"][info[guild]["queue"][0]]["secs_length"] + 1)
 	elif (info[guild]["autoplay"]):
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
@@ -1077,24 +1080,28 @@ async def skip(ctx):
 	else:
 		await ctx.send("This is the last song in queue, I have nothing to skip to!")
 
-async def check_if_song_ended(guild, url, delay):
-	await asyncio.sleep(delay)
+async def check_if_song_ended(guild):#, url):#, delay):
+	#await asyncio.sleep(delay)
+	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+	if (time_since_start.seconds < info["video_info"][info[guild]["queue"][0]]["secs_length"]):
+		return False
 
 	if (len(info[guild]["queue"]) <= 0):
 		return
 
-	if (url == info[guild]["queue"][0]):
-		if (len(info[guild]["queue"]) > 1 or info[guild]["looping"] or info[guild]["autoplay"]):
-			await play_next(guild)
-		else:
-			await info[guild]["voice"].disconnect()
-			info[guild]["task"].cancel()
+	#if (url == info[guild]["queue"][0]):
+	if (len(info[guild]["queue"]) > 1 or info[guild]["looping"] or info[guild]["autoplay"]):
+		await play_next(guild)
+	else:
+		await info[guild]["voice"].disconnect()
+		info[guild]["task"].cancel()
 
-			embed=discord.Embed(title = "Play something new!", description = f"", color=snoo_color)
-			embed.set_author(name = "||  QUEUE ENDED", icon_url=music_icon)
-			await info[guild]["channel"].send(embed=embed)
+		embed=discord.Embed(title = "Play something new!", description = f"", color=snoo_color)
+		embed.set_author(name = "||  QUEUE ENDED", icon_url=music_icon)
+		await info[guild]["channel"].send(embed=embed)
 
-			info[guild]["queue"].clear()
+		info[guild]["queue"].clear()
+	return True
 
 @snoo.command()
 async def loop(ctx):
