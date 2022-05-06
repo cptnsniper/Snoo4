@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup as bs
 import socket
 import requests
 import plotly.express as px
+from difflib import SequenceMatcher
 
 intents = discord.Intents.default()
 intents.presences = True
@@ -58,7 +59,7 @@ user_awards = defaultdict(dict)
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.26 (random music fixes)"
+version = "0.4.28 BETA (1 hour version avoidence)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -695,6 +696,59 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 
 info = {"video_info": defaultdict(dict)}
 
+def find_video_info(url):
+	headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+	resp = requests.get(url,headers=headers)
+	soup = bs(resp.text,'html.parser')
+
+	str_soup = str(soup.findAll('script'))
+
+	start = ',"secondaryResults":{"secondaryResults":'
+	end = '},"autoplay":{"autoplay":'
+
+	st = str_soup.find(start) + len(start)
+	en = str_soup.find(end)
+
+	substring = str_soup[st:en]
+
+	secondary_results = json.loads(substring)
+	
+	url = "http://www.youtube.com/watch?v=" + soup.find("meta", itemprop="videoId")["content"]
+	info["video_info"][url]["id"] = soup.find("meta", itemprop="videoId")["content"]
+
+	info["video_info"][url]["recomended_vids"] = secondary_results["results"]
+
+	"""if ("og:restrictions:age" in str(soup.find_all("meta"))):
+		if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
+			if (message != None):
+				await message.delete()
+			await ctx.send("Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!")
+			return"""
+
+	
+	info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
+	info["video_info"][url]["publish_date"] = soup.find("meta", itemprop="datePublished")["content"]
+	duration = soup.find("meta", itemprop="duration")["content"]
+	views = int(soup.find("meta", itemprop="interactionCount")['content'])
+
+	info["video_info"][url]["channel_link"] = "https://www.youtube.com/channel/" + soup.find("meta", itemprop="channelId")["content"]
+	info["video_info"][url]["channel_name"] = soup.find("span", itemprop="author").next.next['content']
+
+	info["video_info"][url]["thumbnail"] = soup.find("meta", {"name": "twitter:image"})['content']
+	
+	info["video_info"][url]["views"] = "{:,}".format(views)
+
+	mins = re.search('PT(.*)M', duration)
+	mins = int(mins.group(1))
+
+	secs = re.search('M(.*)S', duration)
+	secs = int(secs.group(1))
+	
+	info["video_info"][url]["duration"] = format_time(secs + mins * 60)
+	info["video_info"][url]["secs_length"] = secs + mins * 60
+
+	return url
+
 def find_url(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     url = re.findall(regex,string)      
@@ -771,7 +825,6 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 						return
 			else:
 				if (len(msg.embeds) >= 1): 
-					print(msg.embeds[0].url)
 					if (str(msg.embeds[0].url) != "Embed.Empty"):
 						if ("youtu" in msg.embeds[0].url):
 							url = msg.embeds[0].url
@@ -808,75 +861,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		url = autoplay
 
 	if (url not in info["video_info"]):
-		#session = AsyncHTMLSession()
-		#response = await session.get(url)
-		#await response.html.arender()
-
-		"""hdr = {'User-Agent': 'Mozilla/5.0'}
-		req = Request(url, headers=hdr)
-		page = urlopen(req)
-		soup = bs(page, 'html.parser')"""
-
-		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-		resp = requests.get(url,headers=headers)
-		soup = bs(resp.text,'html.parser')
-
-		str_soup = str(soup.findAll('script'))
-
-		start = ',"secondaryResults":{"secondaryResults":'
-		end = '},"autoplay":{"autoplay":'
-
-		st = str_soup.find(start) + len(start)
-		en = str_soup.find(end)
-
-		substring = str_soup[st:en]
-
-		"""with open("soup.txt", "w", encoding="utf-8") as f:
-			f.write(str_soup)"""
-
-		#await ctx.send(file = discord.File("soup.txt"))
-		secondary_results = json.loads(substring)
-		
-		url = "http://www.youtube.com/watch?v=" + soup.find("meta", itemprop="videoId")["content"]
-		info["video_info"][url]["id"] = soup.find("meta", itemprop="videoId")["content"]
-
-		for i in range(5):
-			if ("compactVideoRenderer" in secondary_results["results"][i]):
-				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i]["compactVideoRenderer"]["videoId"]
-			else:
-				info["video_info"][url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + secondary_results["results"][i + 1]["compactVideoRenderer"]["videoId"]
-
-			if (info["video_info"][url]["recomended_vid"] not in info[ctx.guild.id]["past queue"]):
-				break
-
-		if ("og:restrictions:age" in str(soup.find_all("meta"))):
-			if (soup.find("meta", {"property": "og:restrictions:age"})["content"] == "18+"):
-				if (message != None):
-					await message.delete()
-				await ctx.send("Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!")
-				return
-
-		
-		info["video_info"][url]["title"] = soup.find("meta", itemprop="name")["content"]
-		info["video_info"][url]["publish_date"] = soup.find("meta", itemprop="datePublished")["content"]
-		duration = soup.find("meta", itemprop="duration")["content"]
-		views = int(soup.find("meta", itemprop="interactionCount")['content'])
-
-		info["video_info"][url]["channel_link"] = "https://www.youtube.com/channel/" + soup.find("meta", itemprop="channelId")["content"]
-		info["video_info"][url]["channel_name"] = soup.find("span", itemprop="author").next.next['content']
-
-		info["video_info"][url]["thumbnail"] = soup.find("meta", {"name": "twitter:image"})['content']
-		
-		info["video_info"][url]["views"] = "{:,}".format(views)
-
-		mins = re.search('PT(.*)M', duration)
-		mins = int(mins.group(1))
-
-		secs = re.search('M(.*)S', duration)
-		secs = int(secs.group(1))
-		
-		info["video_info"][url]["duration"] = format_time(secs + mins * 60)
-		info["video_info"][url]["secs_length"] = secs + mins * 60
+		url = find_video_info(url)
 
 	if ("queue" not in info[ctx.guild.id]):
 		info[ctx.guild.id]["queue"] = [url]
@@ -904,6 +889,9 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 
 			if (message != None):
 				await message.edit(content="", embed = embed)
+			else:
+				print("there was no message to edit and snoo was unable to send a conformation embed")
+				await ctx.send(embed = embed)
 
 		#if (not queued):
 			#await check_if_song_ended(ctx.guild.id, url, info["video_info"][url]["secs_length"])
@@ -975,6 +963,7 @@ def nowplaying_embed(guild, url):
 async def nowplaying(ctx):
 	await info[ctx.guild.id]["nowplaying"].delete()
 	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
+	info[ctx.guild.id]["channel"] = ctx.channel
 
 async def update_nowplaying(guild):
 	try:
@@ -983,7 +972,6 @@ async def update_nowplaying(guild):
 				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
 			elif (not await check_if_song_ended(guild)):
 				await play_url(guild, info[guild]["queue"][0])
-		
 	except:
 		print("Update Failed")
 
@@ -998,22 +986,30 @@ async def play_next(guild):
 		await play_url(guild, info[guild]["queue"][0], not info[guild]["looping"])
 		#await check_if_song_ended(guild, info[guild]["queue"][0], info["video_info"][info[guild]["queue"][0]]["secs_length"] + 1)
 	elif (info[guild]["autoplay"]):
+		for i in range(5):
+			if ("compactVideoRenderer" not in info["video_info"][current_url]["recomended_vids"][i]):
+				continue
+			else:
+				info["video_info"][current_url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["videoId"]
+
+			if (info["video_info"][current_url]["recomended_vid"] not in info[guild]["past queue"] and "hour" not in info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
+				print(info["video_info"][current_url]["title"], info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"])
+				#print(similar(info["video_info"][current_url]["title"], info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"]))
+				break
+
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
 	info[guild]["task"].cancel()
 	info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
 
-
-"""@snoo.command()
+@snoo.command()
 async def pause(ctx):
 	if info["voice"].is_playing():
 		info["voice"].pause()
-		info["paused"] = True
 		await ctx.message.add_reaction("⏸️")
 	else:
 		info["voice"].resume()
-		info["paused"] = False
-		await ctx.message.add_reaction("▶️")"""
+		await ctx.message.add_reaction("▶️")
 
 @snoo.command()
 async def stop(ctx):
@@ -1083,11 +1079,11 @@ async def skip(ctx):
 async def check_if_song_ended(guild):#, url):#, delay):
 	#await asyncio.sleep(delay)
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
-	if (time_since_start.seconds < info["video_info"][info[guild]["queue"][0]]["secs_length"]):
+	if (time_since_start.seconds + 1 < info["video_info"][info[guild]["queue"][0]]["secs_length"]):
 		return False
 
-	if (len(info[guild]["queue"]) <= 0):
-		return
+	#if (len(info[guild]["queue"]) <= 0):
+		#return
 
 	#if (url == info[guild]["queue"][0]):
 	if (len(info[guild]["queue"]) > 1 or info[guild]["looping"] or info[guild]["autoplay"]):
@@ -1134,7 +1130,7 @@ async def shuffle(ctx):
 		info["queue"].insert(0, nowplaying)
 		await ctx.send("I have shuffled the current queue!")"""
 
-#debugging
+# _________________________________________________________________ DEBUGING _________________________________________________________________
 @snoo.command()
 async def test(ctx):
 	if (ctx.message.author.id == 401442600931950592):
@@ -1184,6 +1180,8 @@ async def rehash(ctx, type = "normal"):
 		await ctx.send(admin_command_message)"""
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
 
 @snoo.command()
 async def add(ctx):
@@ -1330,13 +1328,12 @@ async def new_save():
 
 	print("Saved")
 
-async def async_timer(timeout, func, arg = None):
+async def async_timer(interval, func, arg = None):
 	while True:
-		await asyncio.sleep(timeout)
 		if (arg == None):
-			await func()
+			await asyncio.gather(asyncio.sleep(interval), func(),)
 		else:
-			await func(arg)
+			await asyncio.gather(asyncio.sleep(interval), func(arg),)
 
 # _________________________________________________________________ RUN _________________________________________________________________
 
