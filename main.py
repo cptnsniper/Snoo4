@@ -59,7 +59,7 @@ user_awards = defaultdict(dict)
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.28 BETA (1 hour version avoidence)"
+version = "0.4.28.1 BETA (1 hour version avoidence)"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -876,7 +876,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 			info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, url))
 			if (message != None):
 				await message.delete()
-			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
+			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(2, update_nowplaying, ctx.guild.id))
 		else:
 			#queued = True
 
@@ -993,14 +993,14 @@ async def play_next(guild):
 				info["video_info"][current_url]["recomended_vid"] = 'http://www.youtube.com/watch?v=' + info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["videoId"]
 
 			if (info["video_info"][current_url]["recomended_vid"] not in info[guild]["past queue"] and "hour" not in info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
-				print(info["video_info"][current_url]["title"], info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"])
+				#print(info["video_info"][current_url]["title"], info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"])
 				#print(similar(info["video_info"][current_url]["title"], info["video_info"][current_url]["recomended_vids"][i]["compactVideoRenderer"]["title"]["simpleText"]))
 				break
 
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
-	info[guild]["task"].cancel()
-	info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
+	#info[guild]["task"].cancel()
+	#info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
 
 @snoo.command()
 async def pause(ctx):
