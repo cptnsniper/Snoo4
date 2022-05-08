@@ -5,6 +5,7 @@ from distutils.log import debug, info
 from email.policy import default
 from locale import Error
 from urllib.parse import DefragResult, urldefrag
+from xml.dom.pulldom import default_bufsize
 import discord
 from discord import guild
 from discord import message
@@ -52,14 +53,16 @@ user_vc_time = defaultdict(dict)
 #top_songs = defaultdict(dict)
 song_history = defaultdict(dict)
 user_candy = defaultdict(dict)
-server_awards = defaultdict(dict)
-user_awards = defaultdict(dict)
+server_config = defaultdict(dict)
+#server_awards = defaultdict(dict)
+#user_awards = defaultdict(dict)
 
 # _________________________________________________________________ GLOBAL VARS _________________________________________________________________
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.28.1 BETA (1 hour version avoidence)"
+version = "0.4.29 PREVIEW (settings)"
+default_settings = {"classic nowplaying bar": False}
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -137,7 +140,7 @@ async def initialize_data():
 
 	str_user_messages = json.load(f)
 
-	server_awards_channel = snoo.get_channel(959590449952194621)
+	"""server_awards_channel = snoo.get_channel(959590449952194621)
 	async for message in server_awards_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/server_awards.json")
 
@@ -151,7 +154,7 @@ async def initialize_data():
 
 	f = open('Data Files/user_awards.json')
 
-	str_user_awards = json.load(f)
+	str_user_awards = json.load(f)"""
 
 	#convert dictionarys to int:
 	for key in str_karma_time:
@@ -181,12 +184,12 @@ async def initialize_data():
 		for new_key in str_user_messages[key]:
 			user_messages[int(key)][int(new_key)] = str_user_messages[key][new_key]
 
-	for key in str_server_awards:
+	"""for key in str_server_awards:
 			server_awards[int(key)] = str_server_awards[key]
 
 	for key in str_user_awards:
 		for new_key in str_user_awards[key]:
-			user_awards[int(key)][int(new_key)] = str_user_awards[key][new_key]
+			user_awards[int(key)][int(new_key)] = str_user_awards[key][new_key]"""
 
 @snoo.event
 async def on_command_error(ctx, error):
@@ -400,6 +403,18 @@ async def on_voice_state_update(member, before, after):
 # _________________________________________________________________ UTILITY _________________________________________________________________
 
 @snoo.command()
+async def config(ctx, *, setting):
+	if (ctx.guild.id not in server_config):
+		server_config[ctx.guild.id] = default_settings.copy()
+
+	if (setting == "classic nowplaying bar"):
+		if (server_config[ctx.guild.id]["classic nowplaying bar"]):
+			server_config[ctx.guild.id]["classic nowplaying bar"] = False
+		else:
+			server_config[ctx.guild.id]["classic nowplaying bar"] = True
+		await ctx.send("👍")
+
+@snoo.command()
 async def yt_mp3(ctx, url, *, name = "video"):
 	if (validators.url(url) and "youtu" in url):
 		ydl_opts = {'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192',}], 'outtmpl': name + ".mp3",}
@@ -542,7 +557,7 @@ async def candy(ctx, *, user: discord.User = 123):
 
 	await ctx.send(embed = embed)
 
-@snoo.command()
+"""@snoo.command()
 async def award(ctx, command = "none", arg1: Union[str, discord.User] = "none", arg2: Union[str, discord.User] = "none", arg3 = "none"):
 	if (command == "create"):
 		server_awards[ctx.guild.id][arg1] = {"desc": arg2 , "image_link": arg3}
@@ -622,7 +637,7 @@ async def award(ctx, command = "none", arg1: Union[str, discord.User] = "none", 
 			await ctx.send(embed = embed)
 
 	else:
-		await ctx.send(f"Command `{command}` not found!")
+		await ctx.send(f"Command `{command}` not found!")"""
 	
 @snoo.command()
 async def top(ctx, length = "length"):
@@ -876,7 +891,7 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 			info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, url))
 			if (message != None):
 				await message.delete()
-			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(2, update_nowplaying, ctx.guild.id))
+			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
 		else:
 			#queued = True
 
@@ -952,8 +967,15 @@ def nowplaying_embed(guild, url):
 
 	playbar_length = 14
 
-	play_bar += "<:PlayBar:925476587439288381>" * round(watch_prsnt * (playbar_length / 100))
-	play_bar += "<:GreyPlayBar:925476587493785700>" * (playbar_length - round(watch_prsnt * (playbar_length / 100)))
+	playbar = "<:PlayBar:925476587439288381>"
+	grey_playbar = "<:GreyPlayBar:925476587493785700>"
+
+	if (server_config[guild]["classic nowplaying bar"]):
+		playbar = "📕"
+		grey_playbar = "🖼️"
+
+	play_bar += playbar * round(watch_prsnt * (playbar_length / 100))
+	play_bar += grey_playbar * (playbar_length - round(watch_prsnt * (playbar_length / 100)))
 
 	embed.add_field(name='Duration:', value = play_bar, inline=False)
 
@@ -1072,6 +1094,8 @@ async def queue(ctx):
 async def skip(ctx):
 	if (len(info[ctx.guild.id]["queue"]) > 1 or info[ctx.guild.id]["autoplay"]):
 		info[ctx.guild.id]["channel"] = ctx.channel
+		await info[ctx.guild.id]["nowplaying"].delete()
+		info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 		await play_next(ctx.guild.id)
 	else:
 		await ctx.send("This is the last song in queue, I have nothing to skip to!")
@@ -1312,7 +1336,7 @@ async def new_save():
 
 	await user_message_channel.send(file=discord.File("Data Files/user_messages.json"))
 
-	server_awards_channel = snoo.get_channel(959590449952194621)
+	"""server_awards_channel = snoo.get_channel(959590449952194621)
 
 	with open("Data Files/server_awards.json", "w") as outfile:
 		json.dump(server_awards, outfile)
@@ -1324,7 +1348,7 @@ async def new_save():
 	with open("Data Files/user_awards.json", "w") as outfile:
 		json.dump(user_awards, outfile)
 
-	await user_awards_channel.send(file=discord.File("Data Files/user_awards.json"))
+	await user_awards_channel.send(file=discord.File("Data Files/user_awards.json"))"""
 
 	print("Saved")
 
