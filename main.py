@@ -48,7 +48,7 @@ user_karma = defaultdict(dict)
 user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
 user_messages = defaultdict(dict)
-users_in_vc = {}
+#users_in_vc = {}
 user_vc_time = defaultdict(dict)
 #top_songs = defaultdict(dict)
 song_history = defaultdict(dict)
@@ -61,7 +61,7 @@ server_config = defaultdict(dict)
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.29 PREVIEW (settings)"
+version = "0.4.30 (facebook level data collection)"
 default_settings = {"classic nowplaying bar": False}
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
@@ -124,13 +124,13 @@ async def initialize_data():
 
 	str_vc_time = json.load(f)
 
-	user_vc_channel = snoo.get_channel(924786492872728616)
+	"""user_vc_channel = snoo.get_channel(924786492872728616)
 	async for message in user_vc_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/users_in_vc.json")
 
 	f = open('Data Files/users_in_vc.json')
 
-	str_users_in_vc = json.load(f)
+	str_users_in_vc = json.load(f)"""
 
 	user_message_channel = snoo.get_channel(931965551759228958)
 	async for message in user_message_channel.history (limit = 1):
@@ -165,8 +165,8 @@ async def initialize_data():
 		for new_key in str_friendship[key]:
 			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
 
-	for key in str_users_in_vc:
-		users_in_vc[int(key)] = str_users_in_vc[key]
+	"""for key in str_users_in_vc:
+		users_in_vc[int(key)] = str_users_in_vc[key]"""
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
@@ -388,7 +388,7 @@ async def on_reaction_remove(reaction, user):
 		user_candy[reaction.message.author.id] += 2
 		user_candy[user.id] += 2
 
-@snoo.event
+"""@snoo.event
 async def on_voice_state_update(member, before, after):
 	if (not before.channel and after.channel):
 		#print(f'{member} has joined vc')
@@ -398,14 +398,13 @@ async def on_voice_state_update(member, before, after):
 			users_in_vc[after.channel.guild.id].append(member.id)
 	elif (before.channel and not after.channel):
 		#print(f'{member} has left vc')
-		users_in_vc[before.channel.guild.id].remove(member.id)
+		users_in_vc[before.channel.guild.id].remove(member.id)"""
 
 # _________________________________________________________________ UTILITY _________________________________________________________________
 
 @snoo.command()
 async def config(ctx, *, setting):
-	if (ctx.guild.id not in server_config):
-		server_config[ctx.guild.id] = default_settings.copy()
+	verify_settings(ctx.guild.id)
 
 	if (setting == "classic nowplaying bar"):
 		if (server_config[ctx.guild.id]["classic nowplaying bar"]):
@@ -891,6 +890,8 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 			info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, url))
 			if (message != None):
 				await message.delete()
+
+			info[ctx.guild.id]["nowplaying_edits"] = 0	
 			info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
 		else:
 			#queued = True
@@ -917,13 +918,6 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 async def play_url(guild, url, display_ui = False):
 	if (info[guild]["voice"].is_playing()):
 		info[guild]["voice"].stop()
-
-	if (guild not in song_history):
-		song_history[guild] = []
-	if (info["video_info"][url]["id"] not in song_history[guild][max(0, len(song_history[guild]) - 1)]):
-		song_history[guild][max(0, len(song_history[guild]) - 1)][info["video_info"][url]["id"]] = 1
-	else:
-		song_history[guild][max(0, len(song_history[guild]) - 1)][info["video_info"][url]["id"]] += 1
 
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -970,6 +964,8 @@ def nowplaying_embed(guild, url):
 	playbar = "<:PlayBar:925476587439288381>"
 	grey_playbar = "<:GreyPlayBar:925476587493785700>"
 
+	verify_settings(guild)
+
 	if (server_config[guild]["classic nowplaying bar"]):
 		playbar = "📕"
 		grey_playbar = "🖼️"
@@ -994,6 +990,12 @@ async def update_nowplaying(guild):
 				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
 			elif (not await check_if_song_ended(guild)):
 				await play_url(guild, info[guild]["queue"][0])
+		info[guild]["nowplaying_edits"] += 1
+		if (info[guild]["nowplaying_edits"] > 300):
+			info[guild]["nowplaying_edits"] = 0
+			await info[guild]["nowplaying"].delete()
+			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = nowplaying_embed(guild, info[guild]["queue"][0]))
+
 	except:
 		print("Update Failed")
 
@@ -1003,6 +1005,11 @@ async def play_next(guild):
 
 	if (not info[guild]["looping"]):
 		del info[guild]["queue"][0]
+
+	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+	watch_prsnt = time_since_start.seconds * (1 / info["video_info"][current_url]["secs_length"])
+	watch_prsnt = round(watch_prsnt, 2)
+	print(watch_prsnt)
 
 	if (len(info[guild]["queue"]) > 0):
 		await play_url(guild, info[guild]["queue"][0], not info[guild]["looping"])
@@ -1021,6 +1028,12 @@ async def play_next(guild):
 
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
+	if (guild not in song_history):
+		song_history[guild] = [{info["video_info"][current_url]["id"]: [{"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]}]}]
+	elif (info["video_info"][current_url]["id"] not in song_history[guild][len(song_history[guild]) - 1]):
+		song_history[guild][len(song_history[guild]) - 1][info["video_info"][current_url]["id"]] = [{"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]}]
+	else:
+		song_history[guild][len(song_history[guild]) - 1][info["video_info"][current_url]["id"]].append({"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]})
 	#info[guild]["task"].cancel()
 	#info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
 
@@ -1045,7 +1058,7 @@ async def stop(ctx):
 		embed=discord.Embed(title = "Have a nice day!", description = f"", color=snoo_color)
 		embed.set_author(name = "||  STOPPED", icon_url=music_icon)
 		#await ctx.send(embed=embed)
-		await info[ctx.guild.id]["channel"].send(embed = embed)
+		await ctx.send(embed = embed)
 
 @snoo.command()
 async def queue(ctx):
@@ -1204,6 +1217,24 @@ async def rehash(ctx, type = "normal"):
 		await ctx.send(admin_command_message)"""
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+def get_users_in_vc(exclude_snoo = False):
+	users_in_vc = {}
+
+	for guild in snoo.guilds:
+		for vc in guild.voice_channels:
+			if (len(vc.members) > 0):
+				users_in_vc[guild.id] = []
+				for member in vc.members:
+					if (exclude_snoo and member == snoo.user):
+						continue
+					users_in_vc[guild.id].append(member.id)
+	
+	return users_in_vc
+
+def verify_settings(guild):
+	if (guild not in server_config):
+		server_config[guild] = default_settings.copy()
+
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
@@ -1261,6 +1292,7 @@ async def save(ctx):
 async def new_save():
 	print("Saving...")
 
+	users_in_vc = get_users_in_vc()
 	for server in users_in_vc:
 		for user in users_in_vc[server]:
 			if (server not in user_vc_time or user not in user_vc_time[server]):
@@ -1309,14 +1341,14 @@ async def new_save():
 
 	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
 
-	user_vc_channel = snoo.get_channel(924786492872728616)
+	"""user_vc_channel = snoo.get_channel(924786492872728616)
 	#async for message in user_vc_channel.history (limit = 1):
 		#await message.delete()
 
 	with open("Data Files/users_in_vc.json", "w") as outfile:
 		json.dump(users_in_vc, outfile)
 
-	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))
+	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))"""
 
 	songs_channel = snoo.get_channel(922592622248341505)
 	#async for message in songs_channel.history (limit = 1):
