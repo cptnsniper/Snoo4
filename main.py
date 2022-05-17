@@ -1,20 +1,8 @@
-from asyncio.tasks import wait
-from cgi import print_arguments
-from cmath import inf
-from distutils.log import debug, info
-from email.policy import default
-from locale import Error
-from urllib.parse import DefragResult, urldefrag
-from xml.dom.pulldom import default_bufsize
 import discord
-from discord import guild
-from discord import message
-from discord import channel
 from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
 from discord.ext.commands import CommandNotFound
-import ctypes.util
 import os
 import validators
 import json
