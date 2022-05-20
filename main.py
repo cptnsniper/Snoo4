@@ -1,3 +1,5 @@
+from hashlib import new
+from importlib.resources import contents
 import discord
 from discord.ext import commands
 from discord.utils import get
@@ -24,6 +26,7 @@ import socket
 import requests
 import plotly.express as px
 from difflib import SequenceMatcher
+from copy import deepcopy
 
 intents = discord.Intents.default()
 intents.presences = True
@@ -32,12 +35,13 @@ snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 
 
 # _________________________________________________________________ DATA _________________________________________________________________
 
-user_karma = defaultdict(dict)
-user_friendship = defaultdict(dict)
+profile_data = defaultdict(dict)
+#user_karma = defaultdict(dict)
+#user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
-user_messages = defaultdict(dict)
+#user_messages = defaultdict(dict)
 #users_in_vc = {}
-user_vc_time = defaultdict(dict)
+#user_vc_time = defaultdict(dict)
 #top_songs = defaultdict(dict)
 song_history = defaultdict(dict)
 user_candy = defaultdict(dict)
@@ -51,6 +55,7 @@ admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
 version = "0.4.30 (facebook level data collection)"
 default_settings = {"classic nowplaying bar": False}
+loading_icon = "<a:loading:977336498322030612>"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
@@ -62,71 +67,33 @@ async def on_ready():
 	print(f'We have logged in as {snoo.user}')
 	
 	await snoo.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="with my master's sanity"))
-	channel = snoo.get_channel(id=865007153109663765)
+	channel = snoo.get_channel(865007153109663765)
 
 	await initialize_data()
 	asyncio.create_task(async_timer(60 * 6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
-
+	
 async def initialize_data():
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
 
-	data_channel = snoo.get_channel(913524327775895563)
+	data_channel = snoo.get_channel(977316868253708359)
 	async for message in data_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/user_karma.json")
-
-	f = open('Data Files/user_karma.json')
-
-	str_karma_time = json.load(f)
-
-	friend_channel = snoo.get_channel(913524431131918406)
-	async for message in friend_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/user_friendship.json")
-
-	f = open('Data Files/user_friendship.json')
-
-	str_friendship = json.load(f)
+		await message.attachments[0].save("Data Files/profile.json")
+	f = open('Data Files/profile.json')
+	str_profile = json.load(f)
 
 	messages_channel = snoo.get_channel(913524223870398534)
 	async for message in messages_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/channel_messages.json")
-
 	f = open('Data Files/channel_messages.json')
-
 	str_messages = json.load(f)
 
 	history_channel = snoo.get_channel(922592622248341505)
 	async for message in history_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/song_history.json")
-
 	f = open('Data Files/song_history.json')
-
 	str_history = json.load(f)
-
-	vc_channel = snoo.get_channel(917185952978468874)
-	async for message in vc_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/user_vc_time.json")
-
-	f = open('Data Files/user_vc_time.json')
-
-	str_vc_time = json.load(f)
-
-	"""user_vc_channel = snoo.get_channel(924786492872728616)
-	async for message in user_vc_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/users_in_vc.json")
-
-	f = open('Data Files/users_in_vc.json')
-
-	str_users_in_vc = json.load(f)"""
-
-	user_message_channel = snoo.get_channel(931965551759228958)
-	async for message in user_message_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/user_messages.json")
-
-	f = open('Data Files/user_messages.json')
-
-	str_user_messages = json.load(f)
 
 	"""server_awards_channel = snoo.get_channel(959590449952194621)
 	async for message in server_awards_channel.history (limit = 1):
@@ -145,32 +112,16 @@ async def initialize_data():
 	str_user_awards = json.load(f)"""
 
 	#convert dictionarys to int:
-	for key in str_karma_time:
-		for new_key in str_karma_time[key]:
-			user_karma[int(key)][int(new_key)] = str_karma_time[key][new_key]
-
-	for key in str_friendship:
-		for new_key in str_friendship[key]:
-			user_friendship[int(key)][int(new_key)] = str_friendship[key][new_key]
-
-	"""for key in str_users_in_vc:
-		users_in_vc[int(key)] = str_users_in_vc[key]"""
+	for guild in str_profile:
+		for user in str_profile[guild]:
+			profile_data[int(guild)][int(user)] = str_profile[guild][user]
 
 	for key in str_messages:
 		for new_key in str_messages[key]:
 			channel_messages[int(key)][int(new_key)] = str_messages[key][new_key]
 
-	for key in str_vc_time:
-		for new_key in str_vc_time[key]:
-			user_vc_time[int(key)][int(new_key)] = str_vc_time[key][new_key]
-
-
 	for guild in (str_history):
 		song_history[int(guild)] = str_history[guild]
-
-	for key in str_user_messages:
-		for new_key in str_user_messages[key]:
-			user_messages[int(key)][int(new_key)] = str_user_messages[key][new_key]
 
 	"""for key in str_server_awards:
 			server_awards[int(key)] = str_server_awards[key]
@@ -194,17 +145,11 @@ async def on_message(message):
 	else:
 		channel_messages[message.guild.id][message.channel.id][len(channel_messages[message.guild.id][message.channel.id]) - 1] += 1
 
-	if (message.guild.id not in user_messages) or (message.author.id not in user_messages[message.guild.id]):
-		user_messages[message.guild.id][message.author.id] = [1]
-
-	#elif (message.guild.id != 905495146890666005 and message.author != snoo.user):
-	else:
-		user_messages[message.guild.id][message.author.id][len(user_messages[message.guild.id][message.author.id]) - 1] += 1
-
-	"""if (message.author.id not in user_candy):
-		user_candy[message.author.id] = 1
-	else:
-		user_candy[message.author.id] += 1"""
+	#if (message.guild.id not in user_messages) or (message.author.id not in user_messages[message.guild.id]):
+	#	user_messages[message.guild.id][message.author.id] = [1]
+	verify_data(message.guild.id, message.author.id)
+	#else:
+	profile_data[message.guild.id][message.author.id]["messages"][-1] += 1
 	
 	#print(channel_messages)
 
@@ -220,6 +165,8 @@ async def on_message(message):
 				upvote = emoji
 			if (emoji.name == "Downvote"):
 				downvote = emoji
+			if (upvote != None and downvote != None):
+				break
 
 		if (upvote == None):
 			await message.add_reaction("<:Upvote:919356607563972628>")
@@ -248,32 +195,30 @@ async def on_message(message):
 			await message.add_reaction("<:check:905498494222098543>")
 	
 	#replys:
-	if (message.content.lower().startswith('hi snoo')):
-		await message.channel.send('Hi!')
+	if (not message.content.lower().startswith("snoo")):
+		if (message.content.lower().startswith('hi snoo')):
+			await message.channel.send('Hi!')
 
-	if (message.content.lower().startswith('bye snoo')):
-		await message.channel.send('Cya!')
+		if (message.content.lower().startswith('bye snoo')):
+			await message.channel.send('Cya!')
 
-	if ('_pat' in message.content.lower() or 'pat' == message.content.lower() or '*pat*' == message.content.lower()):
-		await message.channel.send('.(≧◡≦).')
+		if ('_pat' in message.content.lower() or 'pat' == message.content.lower() or '*pat*' == message.content.lower()):
+			await message.channel.send('.(≧◡≦).')
 
-	if ('thanks snoo' in message.content.lower() or 'thank you snoo' in message.content.lower() or 'ty snoo' in message.content.lower() or 'thx snoo' in message.content.lower()):
-		await message.channel.send('np!')
+		if ('thanks snoo' in message.content.lower() or 'thank you snoo' in message.content.lower() or 'ty snoo' in message.content.lower() or 'thx snoo' in message.content.lower()):
+			await message.channel.send('np!')
 
-	if ('love' in message.content.lower() and 'snoo' in message.content.lower()):
-		await message.channel.send("I love you too! :)")
+		if ('love' in message.content.lower() and 'snoo' in message.content.lower()):
+			await message.channel.send("I love you too! :)")
 
-	if ('hate' in message.content.lower() and 'snoo' in message.content.lower()):
-		await message.channel.send('Sorry to hear. :(')
+		if ('hate' in message.content.lower() and 'snoo' in message.content.lower()):
+			await message.channel.send('Sorry to hear. :(')
 
-	#if ("i'm" in message.content.lower() and "sad" in message.content.lower()):
-	#	await message.channel.send("Don't be! Everything will be alright. <3")
+		if ('sus' in message.content.lower() or 'amogus' in message.content.lower() or 'amongus' in message.content.lower()):
+			await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
 
-	if ('sus' in message.content.lower() or 'amogus' in message.content.lower() or 'amongus' in message.content.lower()):
-		await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
-
-	if ('among' in message.content.lower() and 'us' in message.content.lower()):
-		await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
+		if ('among' in message.content.lower() and 'us' in message.content.lower()):
+			await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
 
 	mention = f'<@!{snoo.user.id}>'
 	if (mention in message.content and not 'karma' in message.content.lower()):
@@ -291,21 +236,11 @@ async def on_reaction_add(reaction, user) :
 		return
 
 	if (reaction.emoji.name == "Upvote") :
+		verify_data(reaction.message.guild.id, reaction.message.author.id)
+		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] += 1
 
-		if (reaction.message.guild.id not in user_karma) or (reaction.message.author.id not in user_karma[reaction.message.guild.id]):
-			user_karma[reaction.message.guild.id][reaction.message.author.id] = [1]
-		else:
-			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
-
-		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
-			user_friendship[reaction.message.guild.id][user.id] = [1]
-		else:
-			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
-
-		"""if (user.id not in user_friendship):
-			user_friendship[user.id] = 1
-		else:
-			user_friendship[user.id] += 1"""
+		verify_data(reaction.message.guild.id, user.id)
+		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] += 1
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = 5
@@ -323,20 +258,11 @@ async def on_reaction_add(reaction, user) :
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] += 1"""
 
 	elif (reaction.emoji.name == "Downvote"):
-		if (reaction.message.guild.id not in user_karma) or (reaction.message.author.id not in user_karma[reaction.message.guild.id]):
-			user_karma[reaction.message.guild.id][reaction.message.author.id] = [-1]
-		else:
-			user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
+		verify_data(reaction.message.guild.id, reaction.message.author.id)
+		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 
-		if (reaction.message.guild.id not in user_friendship) or (user.id not in user_friendship[reaction.message.guild.id]):
-			user_friendship[reaction.message.guild.id][user.id] = [-1]
-		else:
-			user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
-
-		"""if (user.id not in user_friendship):
-			user_friendship[user.id] = -1
-		else:
-			user_friendship[user.id] -= 1"""
+		verify_data(reaction.message.guild.id, user.id)
+		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] -= 1
 
 		if (reaction.message.author.id not in user_candy):
 			user_candy[reaction.message.author.id] = -3
@@ -356,9 +282,9 @@ async def on_reaction_remove(reaction, user):
 		return
 
 	if (reaction.emoji.name == "Upvote"):
-		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] -= 1
+		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 		#user_friendship[user.id] -= 1
-		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] -= 1
+		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] -= 1
 
 		user_candy[reaction.message.author.id] -= 3
 		user_candy[user.id] -= 1
@@ -369,9 +295,9 @@ async def on_reaction_remove(reaction, user):
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] -= 1"""
 
 	if (reaction.emoji.name == "Downvote"):
-		user_karma[reaction.message.guild.id][reaction.message.author.id][len(user_karma[reaction.message.guild.id][reaction.message.author.id]) - 1] += 1
+		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] += 1
 		#user_friendship[user.id] += 1
-		user_friendship[reaction.message.guild.id][user.id][len(user_friendship[reaction.message.guild.id][user.id]) - 1] += 1
+		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] += 1
 
 		user_candy[reaction.message.author.id] += 2
 		user_candy[user.id] += 2
@@ -503,23 +429,18 @@ async def profile(ctx, *, user: discord.User = 123):
 	split_user = str(user).split("#", 1)
 	username = split_user[0]
 
-	if (ctx.guild.id not in user_karma) or (user_id not in user_karma[ctx.guild.id]):
-		user_karma[ctx.guild.id][user_id] = [0]
-	if (ctx.guild.id not in user_friendship) or (user_id not in user_friendship[ctx.guild.id]):
-		user_friendship[ctx.guild.id][user_id] = [0]
-	if (ctx.guild.id not in user_vc_time) or (user_id not in user_vc_time[ctx.guild.id]):
-		user_vc_time[ctx.guild.id][user_id] = [0]
+	verify_data(ctx.guild.id, user_id)
 
 	embed = discord.Embed(colour=snoo_color)
 
 	embed.set_author(name = f"||  {username.upper()}'S PROFILE", icon_url = profile_icon)
 
-	embed.add_field(name = "Karma:", value = f"earned **{user_karma[ctx.guild.id][user_id][len(user_karma[ctx.guild.id][user_id]) - 1]}** upvotes", inline = True)
+	embed.add_field(name = "Karma:", value = f"earned **{sum(profile_data[ctx.guild.id][user_id]['karma'])}** upvotes", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "Friendship:", value = f"given out **{user_friendship[ctx.guild.id][user_id][len(user_friendship[ctx.guild.id][user_id]) - 1]}** karma to others", inline = True)
-	embed.add_field(name = "Messages:", value = f"sent **{sum(user_messages[ctx.guild.id][user_id])}** messages", inline = True)
+	embed.add_field(name = "Friendship:", value = f"given out **{sum(profile_data[ctx.guild.id][user_id]['friendship'])}** karma to others", inline = True)
+	embed.add_field(name = "Messages:", value = f"sent **{sum(profile_data[ctx.guild.id][user_id]['messages'])}** messages", inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(user_vc_time[ctx.guild.id][user_id])}** hours in vc", inline = True)
+	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(profile_data[ctx.guild.id][user_id]['vc_time'])}** hours in vc", inline = True)
 	
 	await ctx.send(embed=embed)
 
@@ -626,7 +547,7 @@ async def award(ctx, command = "none", arg1: Union[str, discord.User] = "none", 
 	else:
 		await ctx.send(f"Command `{command}` not found!")"""
 	
-@snoo.command()
+"""@snoo.command()
 async def top(ctx, length = "length"):
 	if (length == "length"):
 		length = 3
@@ -671,15 +592,15 @@ async def top(ctx, length = "length"):
 		
 		iteration += 1
 
-	await ctx.send(embed=embed)
+	await ctx.send(embed=embed)"""
 
 @snoo.command()
-async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
-	#print(type(data), data)
-	if (type(data) == discord.TextChannel):
-		df = pd.DataFrame(channel_messages[ctx.guild.id][data.id], columns = ['Messages'])
-	else:
-		df = pd.DataFrame(user_karma[ctx.guild.id][data.id], columns = ['Karma'])
+async def graph(ctx, type, *, data: discord.User):
+	#if (type(data) == discord.TextChannel):
+	#	df = pd.DataFrame(channel_messages[ctx.guild.id][data.id], columns = ['Messages'])
+	#else:
+	df = pd.DataFrame(profile_data[ctx.guild.id][data.id][type], columns = ['Karma'])
+	message = await ctx.send(f"Graphing {loading_icon}")
 
 	#layout = Layout(plot_bgcolor='rgb(47,49,54)')
 
@@ -687,8 +608,10 @@ async def graph(ctx, *, data: Union[discord.TextChannel, discord.User]):
 	fig['data'][0]['line']['color']="#FF4400"
 	#fig.update_layout(paper_bgcolor="#2f3136")
 	fig.write_image("graph.png")
+	print("hi")
 
 	#plt.savefig("graph.png")
+	await message.delete()
 	await ctx.send(file=discord.File('graph.png'))
 
 	#plt.clf()
@@ -800,8 +723,19 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 		info[ctx.guild.id]["past queue"] = []
 		message = None
 
+		if (type(ctx.message.author.voice) == type(None)):
+			await ctx.send("Make sure you're in a voice channel first!")
+			return
+
+		channel = ctx.message.author.voice.channel
+
+		if info[ctx.guild.id]["voice"] and info[ctx.guild.id]["voice"].is_connected():
+			await info[ctx.guild.id]["voice"].move_to(channel)
+		else:
+			info[ctx.guild.id]["voice"] = await channel.connect()
+
 		if (ctx.message.reference is None):
-			message = await ctx.send(f"Searching for `{search}` <a:Loading:908094681504706570>")
+			message = await ctx.send(f"Searching for `{search}` {loading_icon}")
 			if (validators.url(search) and "youtu" in search):
 				url = search
 			else:
@@ -848,17 +782,6 @@ async def play(ctx, *, search = "null", autoplay = "null"):
 						await message.edit(content = "I wasn't able to find anything. Try something else?")
 						return
 
-		if (type(ctx.message.author.voice) == type(None)):
-			await ctx.send("Make sure you're in a voice channel first!")
-			await message.delete()
-			return
-
-		channel = ctx.message.author.voice.channel
-
-		if info[ctx.guild.id]["voice"] and info[ctx.guild.id]["voice"].is_connected():
-			await info[ctx.guild.id]["voice"].move_to(channel)
-		else:
-			info[ctx.guild.id]["voice"] = await channel.connect()
 	else:
 		url = autoplay
 
@@ -1166,45 +1089,68 @@ async def test(ctx):
 		await ctx.send(admin_command_message)
 
 @snoo.command()
-async def hash(ctx, hash = "f"):
-	if (ctx.message.author.id == 401442600931950592):
-		hash = ""
-		if (hash != "f") :
-			for key in user_karma:
-				username = await snoo.fetch_user(key)
-				hash += "{}({}): {} (**{}**)\n" .format(key, type(key), user_karma[key], username)
-		else :
-			for key in user_friendship:
-				username = await snoo.fetch_user(key)
-				hash += "{}: {} (**{}**)\n" .format(key, user_friendship[key], username)
-		
-		await ctx.send(hash)
-	else:
-		await ctx.send(admin_command_message)
-
-@snoo.command()
 async def ping(ctx):
 	delay_time = datetime.datetime.now() - ctx.message.created_at
 	delay_ms = delay_time.total_seconds() * 1000
 	delay_ms = round(delay_ms, 2)
 	await ctx.send(str(delay_ms) + "ms")
 
-"""@snoo.command()
-async def rehash(ctx, type = "normal"):
-	if (ctx.message.author.id == 401442600931950592):
-		guild = ctx.message.channel.guild
-			
-		if (type == "full") :
-			user_karma.clear()
-			user_friendship.clear()
-			
-		await add_members(guild)
-
-		await ctx.message.add_reaction("✅")
-	else:
-		await ctx.send(admin_command_message)"""
-
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+def total_to_per_day(in_dict):
+	new_dict = deepcopy(in_dict)
+	for guild in in_dict:
+		for user in in_dict[guild]:
+			for day in range(len(in_dict[guild][user])):
+				if (day == 0):
+					continue
+				#print(dict[guild][user][day], dict[guild][user][day - 1], dict[guild][user][day] - dict[guild][user][day - 1])
+				new_dict[guild][user][day] = in_dict[guild][user][day] - in_dict[guild][user][day - 1]
+	if (new_dict == in_dict):
+		print("true")
+	return new_dict
+
+"""def unite_data():
+	new_dict = defaultdict(dict)
+	for guild in user_messages:
+		for user in user_messages[guild]:
+			if (guild not in new_dict or user not in new_dict[guild]):
+				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
+			new_dict[guild][user]["messages"] = user_messages[guild][user]
+	for guild in user_vc_time:
+		for user in user_vc_time[guild]:
+			if (guild not in new_dict or user not in new_dict[guild]):
+				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
+			new_dict[guild][user]["vc_time"] = user_vc_time[guild][user]
+	for guild in user_friendship:
+		for user in user_friendship[guild]:
+			if (guild not in new_dict or user not in new_dict[guild]):
+				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
+			new_dict[guild][user]["friendship"] = user_friendship[guild][user]
+	for guild in user_karma:
+		for user in user_karma[guild]:
+			if (guild not in new_dict or user not in new_dict[guild]):
+				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
+			new_dict[guild][user]["karma"] = user_karma[guild][user]
+
+	return new_dict
+	final_dict = defaultdict(dict)
+	for guild in new_dict:
+		for user in new_dict[guild]:
+			list_len = max(len(new_dict[guild][user]["messages"]), len(new_dict[guild][user]["vc_time"]), len(new_dict[guild][user]["friendship"]), len(new_dict[guild][user]["karma"]))
+			final_dict[guild][user] = [0] * list_len
+			while (len(new_dict[guild][user]["messages"]) < list_len):
+				new_dict[guild][user]["messages"].insert(0, 0)
+			while (len(new_dict[guild][user]["vc_time"]) < list_len):
+				new_dict[guild][user]["vc_time"].insert(0, 0)
+			while (len(new_dict[guild][user]["friendship"]) < list_len):
+				new_dict[guild][user]["friendship"].insert(0, 0)
+			while (len(new_dict[guild][user]["karma"]) < list_len):
+				new_dict[guild][user]["karma"].insert(0, 0)
+			for i in range(list_len):
+				final_dict[guild][user][i] = {"messages": new_dict[guild][user]["messages"][i], "vc_time": new_dict[guild][user]["vc_time"][i], "friendship": new_dict[guild][user]["friendship"][i], "karma": new_dict[guild][user]["karma"][i]}
+
+	return final_dict"""
+
 def get_users_in_vc(exclude_snoo = False):
 	users_in_vc = {}
 
@@ -1221,7 +1167,11 @@ def get_users_in_vc(exclude_snoo = False):
 
 def verify_settings(guild):
 	if (guild not in server_config):
-		server_config[guild] = default_settings.copy()
+		server_config[guild] = deepcopy(default_settings)
+
+def verify_data(guild, user):
+	if (guild not in profile_data or user not in profile_data[guild]):
+		profile_data[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
 
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
@@ -1229,32 +1179,20 @@ def similar(a, b):
 @snoo.command()
 async def add(ctx):
 	if (ctx.message.author.id == 401442600931950592):
-		await add_entry()
-
+		add_entry()
 		await ctx.message.add_reaction("✅")
 	else:
 		await ctx.send(admin_command_message)
 
 def add_entry():
-	for server in user_karma:
-		for user in user_karma[server]:
-			user_karma[server][user].append(user_karma[server][user][len(user_karma[server][user]) - 1])
-
-	for server in user_friendship:
-		for user in user_friendship[server]:
-			user_friendship[server][user].append(user_friendship[server][user][len(user_friendship[server][user]) - 1])
+	for guild in profile_data:
+		for user in profile_data[guild]:
+			for data in profile_data[guild][user]:
+				profile_data[guild][user][data].append(0)
 
 	for server in channel_messages:
 		for channel in channel_messages[server]:
 			channel_messages[server][channel].append(0)
-
-	for server in user_vc_time:
-		for user in user_vc_time[server]:
-			user_vc_time[server][user].append(0)
-
-	for server in user_messages:
-		for user in user_messages[server]:
-			user_messages[server][user].append(0)
 
 	for server in song_history:
 		song_history[server].append({})
@@ -1283,10 +1221,9 @@ async def new_save():
 	users_in_vc = get_users_in_vc()
 	for server in users_in_vc:
 		for user in users_in_vc[server]:
-			if (server not in user_vc_time or user not in user_vc_time[server]):
-				user_vc_time[server][user] = [0.1]
-			else:
-				user_vc_time[server][user][len(user_vc_time[server][user]) - 1] = round(user_vc_time[server][user][len(user_vc_time[server][user]) - 1] + 0.1, 1)
+			verify_data(server, user)
+
+			profile_data[server][user]["vc_time"][-1] = round(profile_data[server][user]["vc_time"][-1] + 0.1, 1)
 
 			if (user not in user_candy):
 				user_candy[user] = 1
@@ -1294,67 +1231,19 @@ async def new_save():
 				user_candy[user] += 1
 
 	data_channel = snoo.get_channel(913524327775895563)
-	#async for message in data_channel.history (limit = 1):
-		#await message.delete()
-
-	with open("Data Files/user_karma.json", "w") as outfile:
-		json.dump(user_karma, outfile)
-
-	await data_channel.send(file=discord.File("Data Files/user_karma.json"))
-
-	friend_channel = snoo.get_channel(913524431131918406)
-	#async for message in friend_channel.history (limit = 1):
-		#await message.delete()
-
-	with open("Data Files/user_friendship.json", "w") as outfile:
-		json.dump(user_friendship, outfile)
-
-	await friend_channel.send(file=discord.File("Data Files/user_friendship.json"))
+	with open("Data Files/profile.json", "w") as outfile:
+		json.dump(profile_data, outfile)
+	await data_channel.send(file=discord.File("Data Files/profile.json"))
 
 	messages_channel = snoo.get_channel(913524223870398534)
-	#async for message in messages_channel.history (limit = 1):
-		#await message.delete()
-
 	with open("Data Files/channel_messages.json", "w") as outfile:
 		json.dump(channel_messages, outfile)
-
 	await messages_channel.send(file=discord.File("Data Files/channel_messages.json"))
 
-	vc_channel = snoo.get_channel(917185952978468874)
-	#async for message in vc_channel.history (limit = 1):
-		#await message.delete()
-
-	with open("Data Files/user_vc_time.json", "w") as outfile:
-		json.dump(user_vc_time, outfile)
-
-	await vc_channel.send(file=discord.File("Data Files/user_vc_time.json"))
-
-	"""user_vc_channel = snoo.get_channel(924786492872728616)
-	#async for message in user_vc_channel.history (limit = 1):
-		#await message.delete()
-
-	with open("Data Files/users_in_vc.json", "w") as outfile:
-		json.dump(users_in_vc, outfile)
-
-	await user_vc_channel.send(file=discord.File("Data Files/users_in_vc.json"))"""
-
 	songs_channel = snoo.get_channel(922592622248341505)
-	#async for message in songs_channel.history (limit = 1):
-		#await message.delete()
-
 	with open("Data Files/song_history.json", "w") as outfile:
 		json.dump(song_history, outfile)
-
 	await songs_channel.send(file=discord.File("Data Files/song_history.json"))
-
-	user_message_channel = snoo.get_channel(931965551759228958)
-	#async for message in user_message_channel.history (limit = 1):
-		#await message.delete()
-
-	with open("Data Files/user_messages.json", "w") as outfile:
-		json.dump(user_messages, outfile)
-
-	await user_message_channel.send(file=discord.File("Data Files/user_messages.json"))
 
 	"""server_awards_channel = snoo.get_channel(959590449952194621)
 
