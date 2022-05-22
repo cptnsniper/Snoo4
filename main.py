@@ -939,12 +939,13 @@ async def play_next(guild):
 
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
-	if (guild not in song_history):
-		song_history[guild] = [{info["video_info"][current_url]["id"]: [{"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]}]}]
-	elif (info["video_info"][current_url]["id"] not in song_history[guild][len(song_history[guild]) - 1]):
-		song_history[guild][len(song_history[guild]) - 1][info["video_info"][current_url]["id"]] = [{"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]}]
-	else:
-		song_history[guild][len(song_history[guild]) - 1][info["video_info"][current_url]["id"]].append({"retention": watch_prsnt, "listeners": get_users_in_vc(True)[guild]})
+	for user in get_users_in_vc(True)[guild]:
+		if (guild not in song_history or user not in guild[user]):
+			song_history[guild][user] = [{info["video_info"][current_url]["id"]: [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]}]
+		elif (info["video_info"][current_url]["id"] not in song_history[guild][len(song_history[guild]) - 1]):
+			song_history[guild][user][-1][info["video_info"][current_url]["id"]] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
+		else:
+			song_history[guild][-1][user][info["video_info"][current_url]["id"]].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
 	#info[guild]["task"].cancel()
 	#info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
 
@@ -1195,7 +1196,8 @@ def add_entry():
 			channel_messages[server][channel].append(0)
 
 	for server in song_history:
-		song_history[server].append({})
+		for user in song_history[server]:
+			song_history[server][user].append({})
 
 def check_time():
 	threading.Timer(60, check_time).start()
@@ -1230,7 +1232,7 @@ async def new_save():
 			else:
 				user_candy[user] += 1
 
-	data_channel = snoo.get_channel(913524327775895563)
+	data_channel = snoo.get_channel(977316868253708359)
 	with open("Data Files/profile.json", "w") as outfile:
 		json.dump(profile_data, outfile)
 	await data_channel.send(file=discord.File("Data Files/profile.json"))
