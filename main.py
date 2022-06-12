@@ -70,7 +70,7 @@ async def on_ready():
 	channel = snoo.get_channel(865007153109663765)
 
 	await initialize_data()
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	asyncio.create_task(async_timer(1 * 6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
 	
 async def initialize_data():
@@ -116,12 +116,13 @@ async def initialize_data():
 		for user in str_profile[guild]:
 			profile_data[int(guild)][int(user)] = str_profile[guild][user]
 
-	for key in str_messages:
-		for new_key in str_messages[key]:
-			channel_messages[int(key)][int(new_key)] = str_messages[key][new_key]
+	for guild in str_messages:
+		for channel in str_messages[guild]:
+			channel_messages[int(guild)][int(channel)] = str_messages[guild][channel]
 
-	for guild in (str_history):
-		song_history[int(guild)] = str_history[guild]
+	for guild in str_history:
+		for user in str_history[guild]:
+			song_history[int(guild)][int(user)] = str_history[guild][user]
 
 	"""for key in str_server_awards:
 			server_awards[int(key)] = str_server_awards[key]
@@ -940,12 +941,12 @@ async def play_next(guild):
 		await play(info[guild]["channel"], autoplay = info["video_info"][current_url]["recomended_vid"])
 
 	for user in get_users_in_vc(True)[guild]:
-		if (guild not in song_history or user not in guild[user]):
+		if (guild not in song_history or user not in song_history[guild]):
 			song_history[guild][user] = [{info["video_info"][current_url]["id"]: [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]}]
-		elif (info["video_info"][current_url]["id"] not in song_history[guild][len(song_history[guild]) - 1]):
+		elif (info["video_info"][current_url]["id"] not in song_history[guild][user][-1]):
 			song_history[guild][user][-1][info["video_info"][current_url]["id"]] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
 		else:
-			song_history[guild][-1][user][info["video_info"][current_url]["id"]].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
+			song_history[guild][user][-1][info["video_info"][current_url]["id"]].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
 	#info[guild]["task"].cancel()
 	#info[guild]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild))
 
