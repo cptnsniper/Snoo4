@@ -1,4 +1,5 @@
 from hashlib import new
+from http import server
 from importlib.resources import contents
 import discord
 from discord.ext import commands
@@ -54,13 +55,18 @@ server_config = defaultdict(dict)
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
 version = "0.4.30 (facebook level data collection)"
-default_settings = {"classic nowplaying bar": False}
+default_settings = {"classic nowplaying bar": False, "votes": True, "downvote": True}
+settings_info = {
+	"classic nowplaying bar": {"dev": True, "desc": "turns the playbar in the nowplaying embed to the one Snoo originally used"},
+	"votes": {"dev": False, "desc": "choose whether or not Snoo puts votes on posts"},
+	"downvote": {"dev": False, "desc": "choose whether or not Snoo adds downvotes to posts"}}
 loading_icon = "<a:loading:977336498322030612>"
 
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
 profile_icon = "https://media.discordapp.net/attachments/908157040155832350/931732724203520000/profile.png"
 award_icon = "https://cdn.discordapp.com/attachments/908157040155832350/958841770765066280/award_icon.png"
+settings_icon = "https://cdn.discordapp.com/attachments/908157040155832350/985595253174190080/snoo_icon.png"
 
 @snoo.event
 async def on_ready():
@@ -95,6 +101,12 @@ async def initialize_data():
 	f = open('Data Files/song_history.json')
 	str_history = json.load(f)
 
+	config_channel = snoo.get_channel(985597229022724136)
+	async for message in config_channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/server_config.json")
+	f = open('Data Files/server_config.json')
+	str_config = json.load(f)
+
 	"""server_awards_channel = snoo.get_channel(959590449952194621)
 	async for message in server_awards_channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/server_awards.json")
@@ -123,6 +135,9 @@ async def initialize_data():
 	for guild in str_history:
 		for user in str_history[guild]:
 			song_history[int(guild)][int(user)] = str_history[guild][user]
+
+	for guild in str_config:
+		server_config[int(guild)] = str_config[guild]
 
 	"""for key in str_server_awards:
 			server_awards[int(key)] = str_server_awards[key]
@@ -157,27 +172,32 @@ async def on_message(message):
 	if (message.author == snoo.user):
 		return
 
-	if (message.attachments or validators.url(message.content) or '*image*' in message.content.lower()):
-		upvote = None
-		downvote = None
+	verify_settings(message.guild.id)
 
-		for emoji in message.channel.guild.emojis:
-			if (emoji.name == "Upvote"):
-				upvote = emoji
-			if (emoji.name == "Downvote"):
-				downvote = emoji
-			if (upvote != None and downvote != None):
-				break
+	if (server_config[message.guild.id]["votes"]):
+		if (message.attachments or validators.url(message.content) or '*image*' in message.content.lower()):
+			upvote = None
+			downvote = None
 
-		if (upvote == None):
-			await message.add_reaction("<:Upvote:919356607563972628>")
-		else:
-			await message.add_reaction(upvote)
+			for emoji in message.channel.guild.emojis:
+				if (emoji.name.lower() == "upvote"):
+					upvote = emoji
+					if (not server_config[message.guild.id]["downvote"]):
+						break
+				if (emoji.name.lower() == "downvote"):
+					downvote = emoji
+				if (upvote != None and downvote != None):
+					break
 
-		if (downvote == None):
-			await message.add_reaction("<:Downvote:919357445770473503>")
-		else:
-			await message.add_reaction(downvote)
+			if (upvote == None):
+				await message.add_reaction("<:Upvote:919356607563972628>")
+			else:
+				await message.add_reaction(upvote)
+			if (server_config[message.guild.id]["downvote"]):
+				if (downvote == None):
+					await message.add_reaction("<:Downvote:919357445770473503>")
+				else:
+					await message.add_reaction(downvote)
 
 	if (message.content.lower().startswith('%')):
 		if ('scale' in message.content.lower()):
@@ -236,7 +256,7 @@ async def on_reaction_add(reaction, user) :
 	if (type(reaction.emoji) == str):
 		return
 
-	if (reaction.emoji.name == "Upvote") :
+	if (reaction.emoji.name.lower() == "upvote") :
 		verify_data(reaction.message.guild.id, reaction.message.author.id)
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] += 1
 
@@ -258,7 +278,7 @@ async def on_reaction_add(reaction, user) :
 			if (msg.author != user):
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] += 1"""
 
-	elif (reaction.emoji.name == "Downvote"):
+	elif (reaction.emoji.name.lower() == "downvote"):
 		verify_data(reaction.message.guild.id, reaction.message.author.id)
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 
@@ -282,7 +302,7 @@ async def on_reaction_remove(reaction, user):
 	if (type(reaction.emoji) == str):
 		return
 
-	if (reaction.emoji.name == "Upvote"):
+	if (reaction.emoji.name.lower() == "upvote"):
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 		#user_friendship[user.id] -= 1
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] -= 1
@@ -295,7 +315,7 @@ async def on_reaction_remove(reaction, user):
 			if (msg.author != user):
 				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] -= 1"""
 
-	if (reaction.emoji.name == "Downvote"):
+	if (reaction.emoji.name.lower() == "downvote"):
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] += 1
 		#user_friendship[user.id] += 1
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] += 1
@@ -318,15 +338,31 @@ async def on_voice_state_update(member, before, after):
 # _________________________________________________________________ UTILITY _________________________________________________________________
 
 @snoo.command()
-async def config(ctx, *, setting):
+async def config(ctx, *, setting = None):
 	verify_settings(ctx.guild.id)
 
-	if (setting == "classic nowplaying bar"):
-		if (server_config[ctx.guild.id]["classic nowplaying bar"]):
-			server_config[ctx.guild.id]["classic nowplaying bar"] = False
+	if (setting != None):
+		if (setting in server_config[ctx.guild.id]):
+			if (server_config[ctx.guild.id][setting]):
+				server_config[ctx.guild.id][setting] = False
+			else:
+				server_config[ctx.guild.id][setting] = True
+			await ctx.send("👍")
 		else:
-			server_config[ctx.guild.id]["classic nowplaying bar"] = True
-		await ctx.send("👍")
+			await ctx.send("Setting not found!")
+	else:
+		embed = discord.Embed(colour=snoo_color)
+		embed.set_author(name = f"||  SETTINGS", icon_url = settings_icon)
+		for config in server_config[ctx.guild.id]:
+			if (settings_info[config]["dev"]):
+				continue
+			embed.add_field(name = config.upper(), value = settings_info[config]["desc"], inline = True)
+			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+			if (server_config[ctx.guild.id][config]):
+				embed.add_field(name = "<:on1:985591109998759986><:on2:985591107524104324>", value = "\u200b", inline = True)
+			else:
+				embed.add_field(name = "<:off1:985591110799884309><:off2:985591108929208320>", value = "\u200b", inline = True)
+		await ctx.send(embed=embed)
 
 @snoo.command()
 async def yt_mp3(ctx, url, *, name = "video"):
@@ -1242,6 +1278,11 @@ async def new_save():
 	with open("Data Files/channel_messages.json", "w") as outfile:
 		json.dump(channel_messages, outfile)
 	await messages_channel.send(file=discord.File("Data Files/channel_messages.json"))
+
+	config_channel = snoo.get_channel(985597229022724136)
+	with open("Data Files/server_config.json", "w") as outfile:
+		json.dump(server_config, outfile)
+	await config_channel.send(file=discord.File("Data Files/server_config.json"))
 
 	songs_channel = snoo.get_channel(922592622248341505)
 	with open("Data Files/song_history.json", "w") as outfile:
