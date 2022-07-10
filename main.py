@@ -58,13 +58,13 @@ admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
 version = "0.4.31 (music improvements) BETA"
 
-default_settings = {"classic nowplaying bar": False, "votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
+default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
 settings_info = {
-	"classic nowplaying bar": {"dev": True, "desc": "turns the playbar in the nowplaying embed to the one Snoo originally used"},
 	"votes": {"dev": False, "desc": "choose whether or not Snoo puts votes on posts"},
 	"downvote": {"dev": False, "desc": "choose whether or not Snoo adds downvotes to posts"},
 	"slim nowplaying": {"dev": False, "desc": "shows / hides views and upload date on the nowplaying embed"},
-	"large nowplaying thumbnail": {"dev": False, "desc": "sets the nowplaying thumbnail to the larger, two-message style"}}
+	"large nowplaying thumbnail": {"dev": False, "desc": "sets the nowplaying thumbnail to the larger, two-message style"}
+}
 
 loading_icon = "<a:loading:977336498322030612>"
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
@@ -340,7 +340,7 @@ async def config(ctx, *, setting = None):
 	verify_settings(ctx.guild.id)
 
 	if (setting != None):
-		setting = setting.tolower()
+		setting = setting.lower()
 		if (setting in server_config[ctx.guild.id]):
 			if (server_config[ctx.guild.id][setting]):
 				server_config[ctx.guild.id][setting] = False
@@ -643,14 +643,14 @@ async def graph(ctx, type, *, data: discord.User):
 	fig = px.line(df, markers=False, template = "seaborn")
 	fig['data'][0]['line']['color']="#FF4400"
 	#fig.update_layout(paper_bgcolor="#2f3136")
-	fig.write_image("graph.png")
+	fig.write_image("System/graph.png")
 
 	#plt.savefig("graph.png")
 	await message.delete()
-	await ctx.send(file=discord.File('graph.png'))
+	await ctx.send(file=discord.File('System/graph.png'))
 
 	#plt.clf()
-	os.remove("graph.png")
+	#os.remove("graph.png")
 
 # _________________________________________________________________ MUSIC _________________________________________________________________
 
@@ -736,13 +736,6 @@ async def play(ctx, *, search = None, autoplay = None):
 			await ctx.send(error_messages["no_vc"])
 			return
 
-		channel = ctx.message.author.voice.channel
-
-		if info[ctx.guild.id]["voice"] and info[ctx.guild.id]["voice"].is_connected():
-			await info[ctx.guild.id]["voice"].move_to(channel)
-		else:
-			info[ctx.guild.id]["voice"] = await channel.connect()
-
 		searching = f"Searching for `{search}` {loading_icon}"
 		if (ctx.message.reference is None):
 			message = await ctx.send(searching)
@@ -806,8 +799,19 @@ async def play(ctx, *, search = None, autoplay = None):
 	id = find_video_info(id)
 
 	if (id == None):
-		await message.edit(content = error_messages["age_restricted"])
+		if (message != None):
+			await message.edit(content = error_messages["age_restricted"])
+		else:
+			await ctx.send(error_messages["age_restricted"])
 		return
+
+	if (autoplay == None):
+		channel = ctx.message.author.voice.channel
+
+		if info[ctx.guild.id]["voice"] and info[ctx.guild.id]["voice"].is_connected():
+			await info[ctx.guild.id]["voice"].move_to(channel)
+		else:
+			info[ctx.guild.id]["voice"] = await channel.connect()
 
 	if ("queue" not in info[ctx.guild.id]):
 		info[ctx.guild.id]["queue"] = [id]
@@ -860,7 +864,51 @@ async def play_url(guild, id):
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
 
-	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'by [{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color=snoo_color)
+	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+	playing_for = format_time(time_since_start.seconds)
+	watch_prsnt = time_since_start.seconds * (100 / video_info[id]["secs_length"])
+
+	play_bar = f'{playing_for}   '
+
+	"""playbar_length = 14
+	if (server_config[guild]["large nowplaying thumbnail"]):"""
+	playbar_length = 18
+
+	bar1 = "<:bar1:994058965279322144>"
+	bar2 = ["<:bar31:994069492026048713>", "<:bar21:994063956178124882>", "<:bar2:994058964918616074>", "<:bar22:994063957117632572>", "<:bar12:994069492953010196>"]
+	bar3 = "<:bar3:994058963509334018>"
+
+	bar1r = "<:bar1R:995467490052280320>"
+	bar2rR = ["<:bar31:994069492026048713>", "<:bar21r:995476810194223135>", "<:bar2r:995476813495152690>", "<:bar22r:995476811637067836>", "<:bar12r:995476812173942816>"]
+	bar2rL = ["<:bar31rr:995479103954239610>", "<:bar21rr:995479102066798612>", "<:bar2rr:995479104453361675>", "<:bar22rr:995479102976962695>", "<:bar12:994069492953010196>"]
+	bar3r = "<:bar3R:995467514144378992>"
+
+	segments_prsnt = watch_prsnt * (playbar_length / 100)
+	fill_error = 0.5
+	empty_error = 0.5
+
+	if (segments_prsnt > 1):
+		play_bar += bar1r
+		fill_error = 1.5
+	if (playbar_length - segments_prsnt > 1):
+		empty_error = 1.5
+	play_bar += bar1 * round(segments_prsnt - fill_error)
+	for i in range(5):
+		if (segments_prsnt % 1 < (i + 1) * 0.2):
+			if (segments_prsnt > 1 and playbar_length - segments_prsnt > 1):
+				play_bar += bar2[i]
+			elif (segments_prsnt < 1):
+				play_bar += bar2rR[i]
+			elif (playbar_length - segments_prsnt < 1):
+				play_bar += bar2rL[i]
+			break
+	play_bar += bar3 * (playbar_length - round(segments_prsnt + empty_error))
+	if (playbar_length - segments_prsnt > 1):
+		play_bar += bar3r
+
+	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
+	
+	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'by [{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
 
 	thumbnail_embed = None
 	if (server_config[guild]["large nowplaying thumbnail"]):
@@ -876,36 +924,17 @@ def nowplaying_embed(guild, id):
 		embed.add_field(name="Views:", value = "{:,}".format(video_info[id]["views"]), inline=True)
 		embed.add_field(name="Upload Date:", value = video_info[id]["publish_date"].strftime("%b %d %Y"), inline=True)
 
-	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
-	playing_for = format_time(time_since_start.seconds)
-	watch_prsnt = time_since_start.seconds * (100 / video_info[id]["secs_length"])
-
-	play_bar = f'{playing_for} / {format_time(video_info[id]["secs_length"])} '
-
-	playbar_length = 14
-	if (server_config[guild]["large nowplaying thumbnail"]):
-		playbar_length = 18
-
-	playbar = "<:PlayBar:925476587439288381>"
-	grey_playbar = "<:GreyPlayBar:925476587493785700>"
-
-	if (server_config[guild]["classic nowplaying bar"]):
-		playbar = "📕"
-		grey_playbar = "🖼️"
-
-	play_bar += playbar * round(watch_prsnt * (playbar_length / 100))
-	play_bar += grey_playbar * (playbar_length - round(watch_prsnt * (playbar_length / 100)))
-
-	embed.add_field(name='Duration:', value = play_bar, inline=False)
-
+	#embed.add_field(name='Duration:', value = play_bar, inline=False)
+	
 	return [embed, thumbnail_embed]
 
 @snoo.command()
 async def nowplaying(ctx):
-	await info[ctx.guild.id]["nowplaying"].delete()
 	embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
 	if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
+		await info[ctx.guild.id]["thumbnail"].delete()
 		info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
+	await info[ctx.guild.id]["nowplaying"].delete()
 	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0])
 	info[ctx.guild.id]["channel"] = ctx.channel
 
@@ -940,7 +969,7 @@ async def play_next(guild):
 	elif (info[guild]["autoplay"]):
 		for vid in video_info[current_url]["recomended_vids"]:
 			if (vid not in info[guild]["past queue"]):
-				await play(info[guild]["channel"], autoplay = "http://www.youtube.com/watch?v=" + vid)
+				await play(info[guild]["channel"], autoplay = vid)
 				break
 
 	await info[guild]["thumbnail"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[1])
@@ -970,7 +999,7 @@ async def pause(ctx):
 
 @snoo.command()
 async def stop(ctx):
-	if info[ctx.guild.id]["voice"].is_playing():
+	if (info[ctx.guild.id]["voice"].is_playing()):
 		info[ctx.guild.id]["queue"].clear()
 		info[ctx.guild.id]["voice"].stop()
 		info[ctx.guild.id]["task"].cancel()
