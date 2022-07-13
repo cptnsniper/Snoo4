@@ -38,32 +38,24 @@ snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 
 # _________________________________________________________________ DATA _________________________________________________________________
 
 profile_data = defaultdict(dict)
-#user_karma = defaultdict(dict)
-#user_friendship = defaultdict(dict)
 channel_messages = defaultdict(dict)
-#user_messages = defaultdict(dict)
-#users_in_vc = {}
-#user_vc_time = defaultdict(dict)
-#top_songs = defaultdict(dict)
 song_history = defaultdict(dict)
-#user_candy = defaultdict(dict)
 server_config = defaultdict(dict)
-#server_awards = defaultdict(dict)
-#user_awards = defaultdict(dict)
-video_info = defaultdict(dict)
+language = defaultdict(dict)
 
 # _________________________________________________________________ GLOBAL VARS _________________________________________________________________
 
 admin_command_message = "You need to be my master to use this command!"
 snoo_color = 0xe0917a
 version = "0.4.31 (music improvements) BETA"
+lang_set = "Russian"
 
 default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
 settings_info = {
-	"votes": {"dev": False, "desc": "choose whether or not Snoo puts votes on posts"},
-	"downvote": {"dev": False, "desc": "choose whether or not Snoo adds downvotes to posts"},
-	"slim nowplaying": {"dev": False, "desc": "shows / hides views and upload date on the nowplaying embed"},
-	"large nowplaying thumbnail": {"dev": False, "desc": "sets the nowplaying thumbnail to the larger, two-message style"}
+	"votes": {"dev": False},
+	"downvote": {"dev": False},
+	"slim nowplaying": {"dev": False},
+	"large nowplaying thumbnail": {"dev": False}
 }
 
 loading_icon = "<a:loading:977336498322030612>"
@@ -87,6 +79,12 @@ async def on_ready():
 async def initialize_data():
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
+	if (not os.path.isdir('Cache')): 
+		os.makedirs("Cache")
+		
+	global language
+	f = open('System/language.json', encoding='utf8')
+	language = json.load(f)
 
 	data_channel = snoo.get_channel(977316868253708359)
 	async for message in data_channel.history (limit = 1):
@@ -112,22 +110,6 @@ async def initialize_data():
 	f = open('Data Files/server_config.json')
 	str_config = json.load(f)
 
-	"""server_awards_channel = snoo.get_channel(959590449952194621)
-	async for message in server_awards_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/server_awards.json")
-
-	f = open('Data Files/server_awards.json')
-
-	str_server_awards = json.load(f)
-
-	user_awards_channel = snoo.get_channel(959590569137541170)
-	async for message in user_awards_channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/user_awards.json")
-
-	f = open('Data Files/user_awards.json')
-
-	str_user_awards = json.load(f)"""
-
 	#convert dictionarys to int:
 	for guild in str_profile:
 		for user in str_profile[guild]:
@@ -143,13 +125,6 @@ async def initialize_data():
 
 	for guild in str_config:
 		server_config[int(guild)] = str_config[guild]
-
-	"""for key in str_server_awards:
-			server_awards[int(key)] = str_server_awards[key]
-
-	for key in str_user_awards:
-		for new_key in str_user_awards[key]:
-			user_awards[int(key)][int(new_key)] = str_user_awards[key][new_key]"""
 
 @snoo.event
 async def on_command_error(ctx, error):
@@ -214,36 +189,6 @@ async def on_message(message):
 		else:	
 			await message.add_reaction("<:cross:905498493840400475>")
 			await message.add_reaction("<:check:905498494222098543>")
-	
-	#replys:
-	if (not message.content.lower().startswith("snoo")):
-		if (message.content.lower().startswith('hi snoo')):
-			await message.channel.send('Hi!')
-
-		if (message.content.lower().startswith('bye snoo')):
-			await message.channel.send('Cya!')
-
-		if ('_pat' in message.content.lower() or 'pat' == message.content.lower() or '*pat*' == message.content.lower()):
-			await message.channel.send('.(≧◡≦).')
-
-		if ('thanks snoo' in message.content.lower() or 'thank you snoo' in message.content.lower() or 'ty snoo' in message.content.lower() or 'thx snoo' in message.content.lower()):
-			await message.channel.send('np!')
-
-		if ('love' in message.content.lower() and 'snoo' in message.content.lower()):
-			await message.channel.send("I love you too! :)")
-
-		if ('hate' in message.content.lower() and 'snoo' in message.content.lower()):
-			await message.channel.send('Sorry to hear. :(')
-
-		if ('sus' in message.content.lower() or 'amogus' in message.content.lower() or 'amongus' in message.content.lower()):
-			await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
-
-		if ('among' in message.content.lower() and 'us' in message.content.lower()):
-			await message.add_reaction("<:Koneko_Cringe:858704751432302612>")
-
-	mention = f'<@!{snoo.user.id}>'
-	if (mention in message.content and not 'karma' in message.content.lower()):
-		await message.channel.send("Pimg")
 
 	#commands
 	await snoo.process_commands(message)
@@ -263,37 +208,12 @@ async def on_reaction_add(reaction, user) :
 		verify_data(reaction.message.guild.id, user.id)
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] += 1
 
-		"""if (reaction.message.author.id not in user_candy):
-			user_candy[reaction.message.author.id] = 5
-		else:
-			user_candy[reaction.message.author.id] += 5
-
-		if (user.id not in user_candy):
-			user_candy[user.id] = 2
-		else:
-			user_candy[user.id] += 2"""
-
-		"""if (reaction.message.reference is not None):
-			msg = await reaction.message.channel.fetch_message(reaction.message.reference.message_id)
-			if (msg.author != user):
-				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] += 1"""
-
 	elif (reaction.emoji.name.lower() == "downvote"):
 		verify_data(reaction.message.guild.id, reaction.message.author.id)
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 
 		verify_data(reaction.message.guild.id, user.id)
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] -= 1
-
-		"""if (reaction.message.author.id not in user_candy):
-			user_candy[reaction.message.author.id] = -3
-		else:
-			user_candy[reaction.message.author.id] -= 3
-
-		if (user.id not in user_candy):
-			user_candy[user.id] = -2
-		else:
-			user_candy[user.id] -= 2"""
 
 @snoo.event
 async def on_reaction_remove(reaction, user):
@@ -306,39 +226,15 @@ async def on_reaction_remove(reaction, user):
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] -= 1
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] -= 1
 
-		#user_candy[reaction.message.author.id] -= 3
-		#user_candy[user.id] -= 1
-
-		"""if (reaction.message.reference is not None):
-			msg = await reaction.message.channel.fetch_message(reaction.message.reference.message_id)
-			if (msg.author != user):
-				user_karma[reaction.message.channel.guild.id][msg.author.id][len(user_karma[reaction.message.channel.guild.id][msg.author.id]) - 1] -= 1"""
-
 	if (reaction.emoji.name.lower() == "downvote"):
 		profile_data[reaction.message.guild.id][reaction.message.author.id]["karma"][-1] += 1
 		profile_data[reaction.message.guild.id][user.id]["friendship"][-1] += 1
-
-		#user_candy[reaction.message.author.id] += 2
-		#user_candy[user.id] += 2
-
-"""@snoo.event
-async def on_voice_state_update(member, before, after):
-	if (not before.channel and after.channel):
-		#print(f'{member} has joined vc')
-		if (after.channel.guild.id not in users_in_vc):
-			users_in_vc[after.channel.guild.id] = []
-		if (member.id not in users_in_vc[after.channel.guild.id]):
-			users_in_vc[after.channel.guild.id].append(member.id)
-	elif (before.channel and not after.channel):
-		#print(f'{member} has left vc')
-		users_in_vc[before.channel.guild.id].remove(member.id)"""
 
 # _________________________________________________________________ UTILITY _________________________________________________________________
 
 @snoo.command()
 async def config(ctx, *, setting = None):
 	verify_settings(ctx.guild.id)
-
 	if (setting != None):
 		setting = setting.lower()
 		if (setting in server_config[ctx.guild.id]):
@@ -348,14 +244,14 @@ async def config(ctx, *, setting = None):
 				server_config[ctx.guild.id][setting] = True
 			await ctx.send("👍")
 		else:
-			await ctx.send("Setting not found!")
+			await ctx.send(language[lang_set]["error"]["setting_not_found"])
 	else:
 		embed = discord.Embed(colour=snoo_color)
-		embed.set_author(name = f"||  SETTINGS", icon_url = settings_icon)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['settings'].upper()}", icon_url = settings_icon)
 		for config in server_config[ctx.guild.id]:
 			if (settings_info[config]["dev"]):
 				continue
-			embed.add_field(name = config.upper(), value = settings_info[config]["desc"], inline = True)
+			embed.add_field(name = config.upper(), value = language[lang_set]["settings_info"][config], inline = True)
 			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 			if (server_config[ctx.guild.id][config]):
 				embed.add_field(name = "<:on1:985591109998759986><:on2:985591107524104324>", value = "\u200b", inline = True)
@@ -364,46 +260,16 @@ async def config(ctx, *, setting = None):
 		await ctx.send(embed=embed)
 
 @snoo.command()
-async def yt_mp3(ctx, url, *, name = "video"):
-	if (validators.url(url) and "youtu" in url):
-		ydl_opts = {'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192',}], 'outtmpl': name + ".mp3",}
-		with YoutubeDL(ydl_opts) as ydl:
-			msg = await ctx.send(f"Downloading <a:Loading:908094681504706570>")
-
-			ydl.download([url])
-
-			await msg.delete()
-			await ctx.send(file=discord.File(name + '.mp3'))
-			os.remove(name + ".mp3")
-	else:
-		await ctx.send("That's not a youtube url!")
-
-"""@snoo.command()
-async def yt_mp4(ctx, *, url):
-	if (validators.url(url) and "youtu" in url):
-		ydl_opts = {'format': 'mp4', 'outtmpl': "video.mp4",}
-		with YoutubeDL(ydl_opts) as ydl:
-			msg = await ctx.send(f"Downloading <a:Loading:908094681504706570>")
-
-			ydl.download([url])
-
-			await msg.delete()
-			await ctx.send(file=discord.File('video.mp4'))
-			os.remove("video.mp4")
-	else:
-		await ctx.send("That's not a youtube url!")"""
-
-@snoo.command()
 async def poll(ctx, name, *, opts):
 	emojis = ["<:A_:908477372397920316>", "<:B_:908477372637011968>", "<:C_:908477373090000916>", "<:D_:908477372607639572>", "<:E_:908477372561506324>", "<:F_:908477372511170620>", "<:G_:908477372829949952>"]
 	opts_list = opts.split(',')
 	
 
 	embed = discord.Embed(title = name, colour = snoo_color)
-	embed.set_author(name = "||  POLL", icon_url = poll_icon)
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['poll'].upper()}", icon_url = poll_icon)
 
 	for i in range(len(opts_list)):
-		embed.add_field(name = f"Option  {emojis[i]}", value = opts_list[i], inline=False)
+		embed.add_field(name = f"{language[lang_set]['ui']['field']['option']}  {emojis[i]}", value = opts_list[i], inline=False)
 
 	poll = await ctx.send(embed=embed)
 
@@ -469,173 +335,23 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	embed = discord.Embed(colour=snoo_color)
 
-	embed.set_author(name = f"||  {username.upper()}'S PROFILE", icon_url = profile_icon)
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['profile'].format(username).upper()}", icon_url = profile_icon)
 
-	embed.add_field(name = "Karma:", value = f"earned **{sum(profile_data[ctx.guild.id][user_id]['karma'])}** upvotes", inline = True)
+	embed.add_field(name = language[lang_set]['ui']['field']['karma']['title'], value = language[lang_set]['ui']['field']['karma']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['karma'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "Friendship:", value = f"given out **{sum(profile_data[ctx.guild.id][user_id]['friendship'])}** karma to others", inline = True)
-	embed.add_field(name = "Messages:", value = f"sent **{sum(profile_data[ctx.guild.id][user_id]['messages'])}** messages", inline = True)
+	embed.add_field(name = language[lang_set]['ui']['field']['friendship']['title'], value = language[lang_set]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
+	embed.add_field(name = language[lang_set]['ui']['field']['messages']['title'], value = language[lang_set]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = "VC hours:", value = f"spent **{math.fsum(profile_data[ctx.guild.id][user_id]['vc_time'])}** hours in vc", inline = True)
+	embed.add_field(name = language[lang_set]['ui']['field']['vc_hours']['title'], value = language[lang_set]['ui']['field']['vc_hours']['desc'].format(math.fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
 	
 	await ctx.send(embed=embed)
-
-"""@snoo.command()
-async def candy(ctx, *, user: discord.User = 123):
-	if (user == 123):
-		user_id = ctx.message.author.id
-	else:
-		user_id = user.id
-
-	user = await snoo.fetch_user(user_id)
-	split_user = str(user).split("#", 1)
-	username = split_user[0]
-
-	if (user_id not in user_candy):
-		user_candy[user_id] = 0
-
-	embed = discord.Embed(colour=snoo_color)
-	embed.set_author(name = f"||  {username.upper()}'S CANDY", icon_url = profile_icon)
-
-	embed.add_field(name = "Candy:", value = f"currently has **{user_candy[user_id]}**<:candy:932697618843336724>", inline = True)
-
-	await ctx.send(embed = embed)"""
-
-"""@snoo.command()
-async def award(ctx, command = "none", arg1: Union[str, discord.User] = "none", arg2: Union[str, discord.User] = "none", arg3 = "none"):
-	if (command == "create"):
-		server_awards[ctx.guild.id][arg1] = {"desc": arg2 , "image_link": arg3}
-
-		embed = discord.Embed(title = arg1, description = server_awards[ctx.guild.id][arg1]["desc"], color = snoo_color)
-		embed.set_author(name = f"||  AWARD", icon_url = award_icon)
-		if (validators.url(server_awards[ctx.guild.id][arg1]["image_link"])):
-			embed.set_image(url = server_awards[ctx.guild.id][arg1]["image_link"])
-
-		await ctx.send("Got it! Here's what it looks like:", embed = embed)
-
-	elif (command == "give"):
-		arg2 = re.search('!(.*)>', arg2).group(1)
-		user = await snoo.fetch_user(arg2)
-		split_user = str(user).split("#", 1)
-		username = split_user[0]
-		arg2 = int(arg2)
-
-		if (arg1 in server_awards[ctx.guild.id]):
-			if (ctx.guild.id not in user_awards) or (arg2 not in user_awards[ctx.guild.id]):
-				user_awards[ctx.guild.id][arg2] = {arg1: 1}
-			else:
-				if (arg1 in user_awards[ctx.guild.id][arg2]):
-					user_awards[ctx.guild.id][arg2][arg1] += 1
-				else:
-					user_awards[ctx.guild.id][arg2][arg1] = 1
-
-			await ctx.send(f"Gave {username} the award `{arg1}`, they now have **{user_awards[ctx.guild.id][arg2][arg1]}**")
-		else:
-			#await ctx.send(f"You've never made an award called `{arg1}`, would you like me to make one?")
-			await ctx.send(f"You've never made an award called `{arg1}`, use the `create` command to make it first!")
-	
-	elif (command == "edit"):
-		if (ctx.guild.id not in server_awards) or (arg1 not in server_awards[ctx.guild.id]):
-			await ctx.send(f"The award `{arg1}` does not exist, use the `create` command to make it first!")
-		else:
-			server_awards[ctx.guild.id][arg1] = {"desc": arg2 , "image_link": arg3}
-
-		embed = discord.Embed(title = arg1, description = server_awards[ctx.guild.id][arg1]["desc"], color = snoo_color)
-		embed.set_author(name = f"||  AWARD", icon_url = award_icon)
-		if (validators.url(server_awards[ctx.guild.id][arg1]["image_link"])):
-			embed.set_image(url = server_awards[ctx.guild.id][arg1]["image_link"])
-
-		await ctx.send("Here's your edited award!", embed = embed)
-
-	elif (command == "list"):
-		embed = discord.Embed(color = snoo_color)
-		embed.set_author(name = f"||  AWARDS ON {ctx.guild.name.upper()}", icon_url = award_icon)
-
-		for award in server_awards[ctx.guild.id]:
-			embed.add_field(name = award, value = server_awards[ctx.guild.id][award]["desc"], inline = False)
-
-		await ctx.send(embed = embed)
-
-	elif (command == "profile"):
-		if (arg1 == "none"):
-			user_id = ctx.message.author.id
-		else:
-			user_id = re.search('!(.*)>', arg1).group(1)
-
-		user_id = int(user_id)
-
-		arg1 = await snoo.fetch_user(user_id)
-		split_user = str(arg1).split("#", 1)
-		username = split_user[0]
-		
-		if (user_id not in user_awards[ctx.guild.id]):
-			await ctx.send(f"{username} currently doesn't have any awards!")
-		else:
-			embed = discord.Embed(colour=snoo_color)
-
-			embed.set_author(name = f"||  {username.upper()}'S AWARDS", icon_url = profile_icon)
-
-			for award in user_awards[ctx.guild.id][user_id]:
-				embed.add_field(name = f"{award} x{user_awards[ctx.guild.id][user_id][award]}", value = server_awards[ctx.guild.id][award]["desc"], inline = False)
-			
-			await ctx.send(embed = embed)
-
-	else:
-		await ctx.send(f"Command `{command}` not found!")"""
-	
-"""@snoo.command()
-async def top(ctx, length = "length"):
-	if (length == "length"):
-		length = 3
-
-	if (length == "all"):
-		length = len(user_karma[ctx.guild.id])
-
-	if (int(length) <= 0):
-		await ctx.send("Cannot display values under or equal to 0!")
-		length = 3
-
-	if (int(length) > len(user_karma[ctx.guild.id])):
-		length = len(user_karma[ctx.guild.id])
-
-	embed = discord.Embed(title="======= | LeaderBoards | =======", colour = snoo_color)
-
-	simple_karma = {}
-
-	for user in user_karma[ctx.guild.id]:
-		simple_karma[user] = user_karma[ctx.guild.id][user][len(user_karma[ctx.guild.id][user]) - 1]
-
-	iteration = 1
-	for key in dict(sorted(simple_karma.items(), key = lambda item: item[1], reverse = True)):
-		place = ""
-		if (iteration == 1):
-			place = "1st"
-		elif (iteration == 2):
-			place = "2nd"
-		elif (iteration == 3):
-			place = "3rd"
-		else:
-			place = "{}th" .format(iteration)
-
-		user = await snoo.fetch_user(key)
-		split_user = str(user).split("#", 1)
-		username = split_user[0]
-
-		embed.add_field(name="{}: {} with: {} karma".format(place, username, simple_karma[key]), value="{} friendship".format(user_friendship[key]), inline = False)
-
-		if (iteration >= length):
-			break
-		
-		iteration += 1
-
-	await ctx.send(embed=embed)"""
 
 @snoo.command()
 async def graph(ctx, type, *, data: discord.User):
 	#if (type(data) == discord.TextChannel):
 	#	df = pd.DataFrame(channel_messages[ctx.guild.id][data.id], columns = ['Messages'])
 	#else:
-	df = pd.DataFrame(profile_data[ctx.guild.id][data.id][type], columns = ['Karma'])
+	df = pd.DataFrame(profile_data[ctx.guild.id][data.id][type], columns = [type])
 	message = await ctx.send(f"Graphing {loading_icon}")
 
 	#layout = Layout(plot_bgcolor='rgb(47,49,54)')
@@ -643,11 +359,11 @@ async def graph(ctx, type, *, data: discord.User):
 	fig = px.line(df, markers=False, template = "seaborn")
 	fig['data'][0]['line']['color']="#FF4400"
 	#fig.update_layout(paper_bgcolor="#2f3136")
-	fig.write_image("System/graph.png")
+	fig.write_image("Cache/graph.png")
 
 	#plt.savefig("graph.png")
 	await message.delete()
-	await ctx.send(file=discord.File('System/graph.png'))
+	await ctx.send(file=discord.File('Cache/graph.png'))
 
 	#plt.clf()
 	#os.remove("graph.png")
@@ -655,13 +371,7 @@ async def graph(ctx, type, *, data: discord.User):
 # _________________________________________________________________ MUSIC _________________________________________________________________
 
 info = {}
-error_messages = {
-	"age_restricted": "Sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!",
-	"nothing_found": "I wasn't able to find anything. Try something else?",
-	"no_vc": "Make sure you're in a voice channel first!",
-	"not_youtube": "That's not a YouTube link, I'm unable to play it!",
-	"no_content": "Sorry but I'm unable to understand what the content of that message is."
-}
+video_info = defaultdict(dict)
 
 def find_video_info(id):
 	if (id in video_info):
@@ -733,10 +443,10 @@ async def play(ctx, *, search = None, autoplay = None):
 		message = None
 
 		if (type(ctx.message.author.voice) == type(None)):
-			await ctx.send(error_messages["no_vc"])
+			await ctx.send(language[lang_set]["error"]["no_vc"])
 			return
 
-		searching = f"Searching for `{search}` {loading_icon}"
+		searching = f'{language[lang_set]["notifs"]["searching"].format(search)} {loading_icon}'
 		if (ctx.message.reference is None):
 			message = await ctx.send(searching)
 			if (validators.url(search) and "youtu" in search):
@@ -746,7 +456,7 @@ async def play(ctx, *, search = None, autoplay = None):
 				if (result != None):
 					url = result
 				else:
-					await message.edit(content = error_messages["nothing_found"])
+					await message.edit(content = language[lang_set]["error"]["nothing_found"])
 					return
 		else:
 			msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -760,7 +470,7 @@ async def play(ctx, *, search = None, autoplay = None):
 					if (result != None):
 						url = result
 					else:
-						await message.edit(content = error_messages["nothing_found"])
+						await message.edit(content = language[lang_set]["error"]["nothing_found"])
 						return
 			else:
 				if (len(msg.embeds) >= 1): 
@@ -768,13 +478,13 @@ async def play(ctx, *, search = None, autoplay = None):
 						if ("youtu" in msg.embeds[0].url):
 							url = msg.embeds[0].url
 						else:
-							await ctx.send(error_messages["not_youtube"])
+							await ctx.send(language[lang_set]["error"]["not_youtube"])
 							return
 					else:		
-						await ctx.send(error_messages["no_content"])
+						await ctx.send(language[lang_set]["error"]["no_content"])
 						return
 				elif (msg.content == ""):
-					await ctx.send(error_messages["no_content"])
+					await ctx.send(language[lang_set]["error"]["no_content"])
 					return
 				else:
 					message = await ctx.send(searching)
@@ -782,7 +492,7 @@ async def play(ctx, *, search = None, autoplay = None):
 					if (result != None):
 						url = result
 					else:
-						await message.edit(content = error_messages["nothing_found"])
+						await message.edit(content = language[lang_set]["error"]["nothing_found"])
 						return
 	else:
 		url = autoplay
@@ -800,9 +510,9 @@ async def play(ctx, *, search = None, autoplay = None):
 
 	if (id == None):
 		if (message != None):
-			await message.edit(content = error_messages["age_restricted"])
+			await message.edit(content = language[lang_set]["error"]["age_restricted"])
 		else:
-			await ctx.send(error_messages["age_restricted"])
+			await ctx.send(language[lang_set]["errorpy"]["age_restricted"])
 		return
 
 	if (autoplay == None):
@@ -835,10 +545,10 @@ async def play(ctx, *, search = None, autoplay = None):
 		else:
 			#queued = True
 
-			embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'by [{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color=snoo_color)
+			embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color=snoo_color)
 
 			embed.set_thumbnail(url=video_info[id]["thumbnail"])
-			embed.set_author(name = "||  QUEUED", icon_url=music_icon)
+			embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url=music_icon)
 
 			#await ctx.send(embed=embed)
 
@@ -908,21 +618,20 @@ def nowplaying_embed(guild, id):
 
 	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
 	
-	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'by [{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
+	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
 
 	thumbnail_embed = None
 	if (server_config[guild]["large nowplaying thumbnail"]):
 		thumbnail_embed = discord.Embed(color = snoo_color)
 
 		thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
-		thumbnail_embed.set_author(name = "||  NOW PLAYING", icon_url=music_icon)
 	else:
 		embed.set_thumbnail(url=video_info[id]["thumbnail"])
-		embed.set_author(name = "||  NOW PLAYING", icon_url=music_icon)
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
 
 	if (not server_config[guild]["slim nowplaying"]):
-		embed.add_field(name="Views:", value = "{:,}".format(video_info[id]["views"]), inline=True)
-		embed.add_field(name="Upload Date:", value = video_info[id]["publish_date"].strftime("%b %d %Y"), inline=True)
+		embed.add_field(name = language[lang_set]['ui']['field']['views'], value = "{:,}".format(video_info[id]["views"]), inline=True)
+		embed.add_field(name = language[lang_set]['ui']['field']['upload_date'], value = video_info[id]["publish_date"].strftime("%b %d %Y"), inline=True)
 
 	#embed.add_field(name='Duration:', value = play_bar, inline=False)
 	
@@ -1006,8 +715,8 @@ async def stop(ctx):
 		await info[ctx.guild.id]["voice"].disconnect()
 		#info.pop(ctx.guild.id)
 
-		embed=discord.Embed(title = "Have a nice day!", description = f"", color=snoo_color)
-		embed.set_author(name = "||  STOPPED", icon_url=music_icon)
+		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
 		await ctx.send(embed = embed)
 
 @snoo.command()
@@ -1015,7 +724,7 @@ async def queue(ctx):
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (len(info[ctx.guild.id]["queue"]) > 1):
 			embed=discord.Embed(title = "", description = "", color=snoo_color)
-			embed.set_author(name = "||  QUEUE", icon_url=music_icon)
+			embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queue'].upper()}", icon_url=music_icon)
 			
 			songs = ""
 			durations = ""
@@ -1045,7 +754,7 @@ async def queue(ctx):
 							songs += "\n"
 					else: 
 						early_break = True
-						embed.set_footer(text = f'And {len(info[ctx.guild.id]["queue"]) - i} Others, Total Queue Time: {format_time(total_time)}')
+						embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
 						break
 
 					#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
@@ -1056,7 +765,7 @@ async def queue(ctx):
 			embed.add_field(name = "Duration", value = durations, inline=True)
 
 			if (not early_break):
-				embed.set_footer(text = f'Total Queue Time: {format_time(total_time)}')
+				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 			
 			await ctx.send(embed=embed)
 		else:
@@ -1073,7 +782,7 @@ async def skip(ctx):
 		#info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 		await play_next(ctx.guild.id)
 	else:
-		await ctx.send("This is the last song in queue, I have nothing to skip to!")
+		await ctx.send(language[lang_set]["error"]["can_not_skip"])
 
 async def check_if_song_ended(guild):
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
@@ -1086,8 +795,8 @@ async def check_if_song_ended(guild):
 		await info[guild]["voice"].disconnect()
 		info[guild]["task"].cancel()
 
-		embed=discord.Embed(title = "Play something new!", description = f"", color=snoo_color)
-		embed.set_author(name = "||  QUEUE ENDED", icon_url=music_icon)
+		embed=discord.Embed(title = language[lang_set]["ui"]["field"]["queue_end"], description = "", color=snoo_color)
+		embed.set_author(name = f'||  {language[lang_set]["ui"]["title"]["queue_end"].upper()}', icon_url=music_icon)
 		await info[guild]["channel"].send(embed=embed)
 
 		info[guild]["queue"].clear()
@@ -1098,20 +807,20 @@ async def loop(ctx):
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (info[ctx.guild.id]["looping"]):
 			info[ctx.guild.id]["looping"] = False
-			await ctx.send("I will no longer loop!")
+			await ctx.send(language[lang_set]["notifs"]["loop_stop"])
 		else:
 			info[ctx.guild.id]["looping"] = True
-			await ctx.send("I'll now loop the current song!")
+			await ctx.send(language[lang_set]["notifs"]["loop_start"])
 
 @snoo.command()
 async def autoplay(ctx):
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (info[ctx.guild.id]["autoplay"]):
 			info[ctx.guild.id]["autoplay"] = False
-			await ctx.send("I'll no longer automaticaly play videos!")
+			await ctx.send(language[lang_set]["notifs"]["autoplay_stop"])
 		else:
 			info[ctx.guild.id]["autoplay"] = True
-			await ctx.send("I'll do my best to choose an relevant video to play next!")
+			await ctx.send(language[lang_set]["notifs"]["autoplay_start"])
 
 """@snoo.command()
 async def shuffle(ctx):
@@ -1125,14 +834,6 @@ async def shuffle(ctx):
 		await ctx.send("I have shuffled the current queue!")"""
 
 # _________________________________________________________________ DEBUGING _________________________________________________________________
-@snoo.command()
-async def test(ctx):
-	if (ctx.message.author.id == 401442600931950592):
-		for key in channel_messages:
-			for new_key in channel_messages[key]:
-				channel_messages[key][new_key].append(0)
-	else:
-		await ctx.send(admin_command_message)
 
 @snoo.command()
 async def ping(ctx):
@@ -1162,10 +863,7 @@ def find_url(string):
     return [x[0] for x in url]
 
 def str_json(string):
-	if (not os.path.isdir('System')):
-		os.makedirs("System")
-
-	with open("System/string.json", "w") as outfile:
+	with open("Cache/string.json", "w") as outfile:
 		json.dump(string, outfile)
 
 @snoo.command()
@@ -1340,25 +1038,6 @@ async def new_save():
 	with open("Data Files/song_history.json", "w") as outfile:
 		json.dump(song_history, outfile)
 	await songs_channel.send(file=discord.File("Data Files/song_history.json"))
-
-	"""video_channel = snoo.get_channel(993332319454760960)
-	with open("Data Files/video_info.json", "w") as outfile:
-		json.dump(video_info, outfile)
-	await video_channel.send(file=discord.File("Data Files/video_info.json"))"""
-
-	"""server_awards_channel = snoo.get_channel(959590449952194621)
-
-	with open("Data Files/server_awards.json", "w") as outfile:
-		json.dump(server_awards, outfile)
-
-	await server_awards_channel.send(file=discord.File("Data Files/server_awards.json"))
-
-	user_awards_channel = snoo.get_channel(959590569137541170)
-
-	with open("Data Files/user_awards.json", "w") as outfile:
-		json.dump(user_awards, outfile)
-
-	await user_awards_channel.send(file=discord.File("Data Files/user_awards.json"))"""
 
 	print("Saved")
 
