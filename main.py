@@ -73,6 +73,7 @@ async def on_ready():
 	channel = snoo.get_channel(865007153109663765)
 
 	await initialize_data()
+	verify_lang()
 	asyncio.create_task(async_timer(60 * 6, new_save))
 	await channel.send(f"Running version: {version} on {socket.gethostname()}")
 	
@@ -125,6 +126,38 @@ async def initialize_data():
 
 	for guild in str_config:
 		server_config[int(guild)] = str_config[guild]
+
+def verify_lang():
+	for sett in language["English"]["settings_info"]:
+		for lang in language:
+			if (lang == "English"):
+				continue
+			if (sett not in language[lang]["settings_info"]):
+				language[lang]["settings_info"][sett] = language["English"]["settings_info"][sett]
+	for error in language["English"]["error"]:
+		for lang in language:
+			if (lang == "English"):
+				continue
+			if (error not in language[lang]["error"]):
+				language[lang]["error"][error] = language["English"]["error"][error]
+	for notif in language["English"]["notifs"]:
+		for lang in language:
+			if (lang == "English"):
+				continue
+			if (notif not in language[lang]["notifs"]):
+				language[lang]["notifs"][notif] = language["English"]["notifs"][notif]
+	for title in language["English"]["ui"]["title"]:
+		for lang in language:
+			if (lang == "English"):
+				continue
+			if (title not in language[lang]["ui"]["title"]):
+				language[lang]["ui"]["title"][title] = language["English"]["ui"]["title"][title]
+	for field in language["English"]["ui"]["field"]:
+		for lang in language:
+			if (lang == "English"):
+				continue
+			if (field not in language[lang]["ui"]["field"]):
+				language[lang]["ui"]["field"][field] = language["English"]["ui"]["field"][field]
 
 @snoo.event
 async def on_command_error(ctx, error):
@@ -368,6 +401,25 @@ async def graph(ctx, type, *, data: discord.User):
 	#plt.clf()
 	#os.remove("graph.png")
 
+@snoo.command()
+async def extract(ctx, url = None):
+	if (url == None):
+		if (info[ctx.guild.id]["voice"].is_playing()):
+			url = info[ctx.guild.id]["queue"][0]
+		else:
+			await ctx.send(language[lang_set]["error"]["no_url"])
+
+	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
+	with YoutubeDL(YDL_OPTIONS) as ydl:
+		try:
+			vid = ydl.extract_info(url, download=False)
+		except:
+			print("Failed to fetch video info")
+			await ctx.send(language[lang_set]["error"]["extract"])
+			return
+	str_json(vid)
+	await ctx.send(file=discord.File('Cache/string.json'))
+
 # _________________________________________________________________ MUSIC _________________________________________________________________
 
 info = {}
@@ -375,15 +427,19 @@ video_info = defaultdict(dict)
 
 def find_video_info(id):
 	if (id in video_info):
-		return id
+		return True
 
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	with YoutubeDL(YDL_OPTIONS) as ydl:
 		try:
-			vid = ydl.extract_info(id, download=False)
+			vid = ydl.extract_info('http://www.youtube.com/watch?v=' + id, download=False)
 		except:
 			print("Failed to fetch video info")
-			return None
+			return False
+
+	id = vid["id"]
+	if (id in video_info):
+		return True
 
 	video_info[id]["title"] = vid["title"]
 	video_info[id]["views"] = vid["view_count"]
@@ -424,7 +480,7 @@ def search_yt(search):
 	if (len(search_results) > 0):
 		return search_results[0]
 	else:
-		return None
+		return True
 
 @snoo.command()
 async def plays(ctx, *, searchs = None):
@@ -446,12 +502,12 @@ async def play(ctx, *, search = None, autoplay = None):
 			await ctx.send(language[lang_set]["error"]["no_vc"])
 			return
 
-		searching = f'{language[lang_set]["notifs"]["searching"].format(search)} {loading_icon}'
+		searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
 		if (ctx.message.reference is None):
-			message = await ctx.send(searching)
 			if (validators.url(search) and "youtu" in search):
 				url = search
 			else:
+				message = await ctx.send(searching.format(search))
 				result = search_yt(search)
 				if (result != None):
 					url = result
@@ -465,7 +521,7 @@ async def play(ctx, *, search = None, autoplay = None):
 				if ("youtu" in temp_url):
 					url = temp_url
 				else:
-					message = await ctx.send(searching)
+					message = await ctx.send(searching.format(msg.content))
 					result = search_yt(msg.content)
 					if (result != None):
 						url = result
@@ -487,7 +543,7 @@ async def play(ctx, *, search = None, autoplay = None):
 					await ctx.send(language[lang_set]["error"]["no_content"])
 					return
 				else:
-					message = await ctx.send(searching)
+					message = await ctx.send(searching.format(msg.content))
 					result = search_yt(msg.content)
 					if (result != None):
 						url = result
@@ -497,18 +553,9 @@ async def play(ctx, *, search = None, autoplay = None):
 	else:
 		url = autoplay
 
-	id = url
-	if ("youtu.be" in url):
-		id = url.split("be/", 1)[1]
-	elif ("youtube.com" in url):
-		if ("&" not in url):
-			id = url.split("?v=", 1)[1]
-		else:
-			id = re.search('?v=(.*)&', url).group(1)
+	id = yt_id(url)
 
-	id = find_video_info(id)
-
-	if (id == None):
+	if (not find_video_info(id)):
 		if (message != None):
 			await message.edit(content = language[lang_set]["error"]["age_restricted"])
 		else:
@@ -760,9 +807,9 @@ async def queue(ctx):
 					#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
 					durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
 
-			embed.add_field(name = "Next Up", value = songs, inline=True)
+			embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
 			#embed.add_field(name = "Channel", value = channels, inline=True)
-			embed.add_field(name = "Duration", value = durations, inline=True)
+			embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
 
 			if (not early_break):
 				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
@@ -777,12 +824,17 @@ async def queue(ctx):
 @snoo.command()
 async def skip(ctx):
 	if (len(info[ctx.guild.id]["queue"]) > 1 or info[ctx.guild.id]["autoplay"]):
-		#info[ctx.guild.id]["channel"] = ctx.channel
-		#await info[ctx.guild.id]["nowplaying"].delete()
-		#info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0]))
 		await play_next(ctx.guild.id)
 	else:
 		await ctx.send(language[lang_set]["error"]["can_not_skip"])
+
+@snoo.command()
+async def back(ctx):
+	if (len(info[ctx.guild.id]["past queue"]) >= 1):
+		info[ctx.guild.id]["queue"].insert(1, info[ctx.guild.id]["past queue"][-1])
+		await play_next(ctx.guild.id)
+	else:
+		await ctx.send(language[lang_set]["error"]["can_not_back"])
 
 async def check_if_song_ended(guild):
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
@@ -843,6 +895,28 @@ async def ping(ctx):
 	await ctx.send(str(delay_ms) + "ms")
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+def yt_id(url):
+	if ("youtu.be" in url):
+		if ("?" not in url):
+			return url.split("be/", 1)[1]
+		else:
+			start = 'be/'
+			end = '?'
+			st = url.find(start) + len(start)
+			en = url.find(end)
+			return url[st:en]
+	elif ("youtube.com" in url):
+		if ("&" not in url):
+			return url.split("?v=", 1)[1]
+		else:
+			start = '?v='
+			end = '&'
+			st = url.find(start) + len(start)
+			en = url.find(end)
+			return url[st:en]
+	else:
+		return url
+
 def format_time(secs):
 	hours, remainder = divmod(secs, 3600)
 	minutes, seconds = divmod(remainder, 60)
@@ -884,61 +958,6 @@ async def history(ctx):
 		await ctx.send(first_ten)
 	else:
 		await ctx.send(admin_command_message)
-
-"""def total_to_per_day(in_dict):
-	new_dict = deepcopy(in_dict)
-	for guild in in_dict:
-		for user in in_dict[guild]:
-			for day in range(len(in_dict[guild][user])):
-				if (day == 0):
-					continue
-				#print(dict[guild][user][day], dict[guild][user][day - 1], dict[guild][user][day] - dict[guild][user][day - 1])
-				new_dict[guild][user][day] = in_dict[guild][user][day] - in_dict[guild][user][day - 1]
-	if (new_dict == in_dict):
-		print("true")
-	return new_dict"""
-
-"""def unite_data():
-	new_dict = defaultdict(dict)
-	for guild in user_messages:
-		for user in user_messages[guild]:
-			if (guild not in new_dict or user not in new_dict[guild]):
-				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
-			new_dict[guild][user]["messages"] = user_messages[guild][user]
-	for guild in user_vc_time:
-		for user in user_vc_time[guild]:
-			if (guild not in new_dict or user not in new_dict[guild]):
-				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
-			new_dict[guild][user]["vc_time"] = user_vc_time[guild][user]
-	for guild in user_friendship:
-		for user in user_friendship[guild]:
-			if (guild not in new_dict or user not in new_dict[guild]):
-				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
-			new_dict[guild][user]["friendship"] = user_friendship[guild][user]
-	for guild in user_karma:
-		for user in user_karma[guild]:
-			if (guild not in new_dict or user not in new_dict[guild]):
-				new_dict[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
-			new_dict[guild][user]["karma"] = user_karma[guild][user]
-
-	return new_dict
-	final_dict = defaultdict(dict)
-	for guild in new_dict:
-		for user in new_dict[guild]:
-			list_len = max(len(new_dict[guild][user]["messages"]), len(new_dict[guild][user]["vc_time"]), len(new_dict[guild][user]["friendship"]), len(new_dict[guild][user]["karma"]))
-			final_dict[guild][user] = [0] * list_len
-			while (len(new_dict[guild][user]["messages"]) < list_len):
-				new_dict[guild][user]["messages"].insert(0, 0)
-			while (len(new_dict[guild][user]["vc_time"]) < list_len):
-				new_dict[guild][user]["vc_time"].insert(0, 0)
-			while (len(new_dict[guild][user]["friendship"]) < list_len):
-				new_dict[guild][user]["friendship"].insert(0, 0)
-			while (len(new_dict[guild][user]["karma"]) < list_len):
-				new_dict[guild][user]["karma"].insert(0, 0)
-			for i in range(list_len):
-				final_dict[guild][user][i] = {"messages": new_dict[guild][user]["messages"][i], "vc_time": new_dict[guild][user]["vc_time"][i], "friendship": new_dict[guild][user]["friendship"][i], "karma": new_dict[guild][user]["karma"][i]}
-
-	return final_dict"""
 
 def get_users_in_vc(exclude_snoo = False):
 	users_in_vc = {}
