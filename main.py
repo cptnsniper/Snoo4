@@ -41,6 +41,7 @@ profile_data = defaultdict(dict)
 channel_messages = defaultdict(dict)
 song_history = defaultdict(dict)
 server_config = defaultdict(dict)
+playlists = defaultdict(dict)
 language = defaultdict(dict)
 
 # _________________________________________________________________ GLOBAL VARS _________________________________________________________________
@@ -57,6 +58,8 @@ settings_info = {
 	"slim nowplaying": {"dev": False},
 	"large nowplaying thumbnail": {"dev": False}
 }
+
+new_playlist = {"title": "new playlist", "desc": "", "cover": "https://cdn.discordapp.com/attachments/908157040155832350/999112912352333854/snoo_cover.png", "songs": []}
 
 loading_icon = "<a:loading:977336498322030612>"
 poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
@@ -87,29 +90,35 @@ async def initialize_data():
 	f = open('System/language.json', encoding='utf8')
 	language = json.load(f)
 
-	data_channel = snoo.get_channel(977316868253708359)
-	async for message in data_channel.history (limit = 1):
+	channel = snoo.get_channel(977316868253708359)
+	async for message in channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/profile.json")
 	f = open('Data Files/profile.json')
 	str_profile = json.load(f)
 
-	messages_channel = snoo.get_channel(913524223870398534)
-	async for message in messages_channel.history (limit = 1):
+	channel = snoo.get_channel(913524223870398534)
+	async for message in channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/channel_messages.json")
 	f = open('Data Files/channel_messages.json')
 	str_messages = json.load(f)
 
-	history_channel = snoo.get_channel(922592622248341505)
-	async for message in history_channel.history (limit = 1):
+	channel = snoo.get_channel(922592622248341505)
+	async for message in channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/song_history.json")
 	f = open('Data Files/song_history.json')
 	str_history = json.load(f)
 
-	config_channel = snoo.get_channel(985597229022724136)
-	async for message in config_channel.history (limit = 1):
+	channel = snoo.get_channel(985597229022724136)
+	async for message in channel.history (limit = 1):
 		await message.attachments[0].save("Data Files/server_config.json")
 	f = open('Data Files/server_config.json')
 	str_config = json.load(f)
+
+	channel = snoo.get_channel(999117002323001354)
+	async for message in channel.history (limit = 1):
+		await message.attachments[0].save("Data Files/playlists.json")
+	f = open('Data Files/playlists.json')
+	str_playlists = json.load(f)
 
 	#convert dictionarys to int:
 	for guild in str_profile:
@@ -126,6 +135,10 @@ async def initialize_data():
 
 	for guild in str_config:
 		server_config[int(guild)] = str_config[guild]
+
+	for guild in str_playlists:
+		for user in str_playlists[guild]:
+			playlists[int(guild)][int(user)] = str_playlists[guild][user]
 
 def verify_lang():
 	for sett in language["English"]["settings_info"]:
@@ -420,26 +433,27 @@ async def extract(ctx, url = None):
 	str_json(vid)
 	await ctx.send(file=discord.File('Cache/string.json'))
 
+@snoo.command()
+async def playlist(ctx, arg1 = None):
+	if (arg1 in playlists[ctx.guild.id][ctx.message.author]):
+		embed = discord.Embed(color = snoo_color)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
+
 # _________________________________________________________________ MUSIC _________________________________________________________________
 
 info = {}
 video_info = defaultdict(dict)
 
 def find_video_info(id):
-	if (id in video_info):
-		return True
-
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	with YoutubeDL(YDL_OPTIONS) as ydl:
 		try:
-			vid = ydl.extract_info('http://www.youtube.com/watch?v=' + id, download=False)
+			vid = ydl.extract_info(id, download=False)
 		except:
 			print("Failed to fetch video info")
 			return False
 
 	id = vid["id"]
-	if (id in video_info):
-		return True
 
 	video_info[id]["title"] = vid["title"]
 	video_info[id]["views"] = vid["view_count"]
@@ -555,7 +569,11 @@ async def play(ctx, *, search = None, autoplay = None):
 
 	id = yt_id(url)
 
-	if (not find_video_info(id)):
+	found_info = True
+	if (id not in video_info):
+		found_info = find_video_info(id)
+
+	if (not found_info):
 		if (message != None):
 			await message.edit(content = language[lang_set]["error"]["age_restricted"])
 		else:
@@ -700,6 +718,7 @@ async def update_nowplaying(guild):
 			if (info[guild]["voice"].is_playing()):
 				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[0])
 			elif (not await check_if_song_ended(guild)):
+				find_video_info(info[guild]["queue"][0])
 				await play_url(guild, info[guild]["queue"][0])
 		info[guild]["nowplaying_edits"] += 1
 		if (info[guild]["nowplaying_edits"] > 300):
