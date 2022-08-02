@@ -522,6 +522,11 @@ def search_yt(search):
 
 @snoo.command()
 async def play(ctx, *, search = None, autoplay = None):
+	skip_search = False
+	playlist = None
+	message = None
+	id = None
+
 	if (autoplay == None):
 		if (ctx.guild.id not in info):
 			info[ctx.guild.id] = {"channel": ctx.channel, "voice": get(snoo.voice_clients, guild = ctx.guild), "paused": False, "looping": False, "autoplay": True, "queue": [], "past queue": []}
@@ -531,10 +536,6 @@ async def play(ctx, *, search = None, autoplay = None):
 			return
 
 		searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
-		message = None
-		playlist = None
-		id = None
-		skip_search = False
 
 		if (ctx.message.reference is None):
 			if (verify_yt_id(yt_id(search))):
@@ -833,6 +834,7 @@ async def play_next(guild):
 	elif (info[guild]["autoplay"]):
 		for vid in video_info[current_url]["recomended_vids"]:
 			if (vid not in info[guild]["past queue"]):
+				print(vid)
 				await play(info[guild]["channel"], autoplay = vid)
 				break
 
