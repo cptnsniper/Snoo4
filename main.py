@@ -341,38 +341,6 @@ async def poll(ctx, name, *, opts):
 		await poll.add_reaction(emojis[i])
 
 @snoo.command()
-async def purge(ctx, amount = 0, embed = False, user: discord.User = 123):
-	if (ctx.message.author.id == 401442600931950592):
-		message_number = 1
-
-		async for message in ctx.message.channel.history (limit = 10000) :
-			if (message_number > 1) :
-				if (embed == False and user == 123) :
-					await message.delete()
-					message_number += 1
-				if (embed == True) :
-					if (user == 123) :
-						if (message.attachments or validators.url(message.content)) :
-							await message.delete()
-							message_number += 1
-					else :
-						if ((message.attachments or validators.url(message.content)) and message.author == user) :
-							await message.delete()
-							message_number += 1
-				elif (embed == False and user != 123) :
-					if (message.author == user) :
-						await message.delete()
-						message_number += 1
-			else :
-				message_number += 1
-			if (message_number == amount) :
-				break
-		
-		await ctx.message.add_reaction("✅")
-	else:
-		await ctx.send(admin_command_message)
-
-@snoo.command()
 async def user(ctx, *, user: discord.User):
 	username = await snoo.fetch_user(user.id)
 	await ctx.send(username)
@@ -466,9 +434,8 @@ async def playlist(ctx, *, arg1 = None):
 # _________________________________________________________________ MUSIC _________________________________________________________________
 
 info = {}
-updated_info = []
 
-def find_video_info(id):
+def find_video_info(id, only_source = False):
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	with YoutubeDL(YDL_OPTIONS) as ydl:
 		try:
@@ -477,9 +444,13 @@ def find_video_info(id):
 			print("Failed to fetch video info", id)
 			return False
 
-	id = vid["id"]
+	#id = vid["id"]
+	if (only_source):
+		video_info[id]["source"] = vid["url"]
+		return True
 
 	video_info[id] = {}
+	video_info[id]["source"] = vid["url"]
 	video_info[id]["title"] = vid["title"]
 	video_info[id]["views"] = vid["view_count"]
 	video_info[id]["secs_length"] = vid["duration"]
@@ -487,7 +458,6 @@ def find_video_info(id):
 	video_info[id]["channel_link"] = vid["channel_url"]
 	video_info[id]["channel_name"] = vid["uploader"]
 	video_info[id]["thumbnail"] = vid["thumbnails"][-1]["url"]
-	video_info[id]["source"] = vid["url"]
 
 	headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
 	resp = requests.get('http://www.youtube.com/watch?v=' + id, headers=headers)
@@ -508,7 +478,7 @@ def find_video_info(id):
 		elif ("hour" not in secondary_results["results"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
 			video_info[id]["recomended_vids"].append(secondary_results["results"][i]["compactVideoRenderer"]["videoId"])
 
-	return id
+	return True
 
 def search_yt(search):
 	query_string = urllib.parse.urlencode({'search_query' : search})
@@ -519,6 +489,19 @@ def search_yt(search):
 		return search_results[0]
 	else:
 		return True
+
+def search_and_find_info(search):
+	if (not verify_yt_id(search)):
+		result = search_yt(search)
+		if (result == None):
+			return None
+	else:
+		result = search
+	
+	if (result not in video_info):
+		find_video_info(result)
+	
+	return result
 
 @snoo.command()
 async def play(ctx, *, search = None, autoplay = None):
@@ -594,13 +577,14 @@ async def play(ctx, *, search = None, autoplay = None):
 		id = autoplay
 
 	if (not skip_search):
-		#id = yt_id(url)
-		#print(id)
-
 		found_info = True
 		if (id not in video_info):
+			print("new video")
 			found_info = find_video_info(id)
-			updated_info.append(id)
+
+		if (not valid_url(video_info[id]["source"])):
+			print("url expired")
+			found_info = find_video_info(id, True)
 
 		if (not found_info):
 			if (message != None):
@@ -651,9 +635,7 @@ async def play(ctx, *, search = None, autoplay = None):
 		else:
 			await play_url(ctx.guild.id, id)
 
-		if (id not in updated_info):
-			find_video_info(id)
-			updated_info.append(id)
+		threading.Thread(target = find_autoplay, args = (ctx.guild.id, id, )).start()
 
 	if (playlist != None):
 		for i in range(len(playlist)):
@@ -664,12 +646,15 @@ async def play(ctx, *, search = None, autoplay = None):
 		embed_msg = None
 		edit_needed = False
 		i = 0
+		total_time = 0
 		while (i < len(playlist)):
 			if (playlist[i] in video_info):
 				info[ctx.guild.id]["queue"].append(playlist[i])
-				embed.add_field(name = f'**{i + 1}** || {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
-				#embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-				#embed.add_field(name = format_time(video_info[playlist[i]]["secs_length"]), value = "\u200b", inline = True)
+				total_time += video_info[playlist[i]]["secs_length"]
+				if (i < 25):
+					embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
+				else:
+					embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(i - 24, format_time(total_time)))
 
 				if (edit_needed):
 					if (i == 0):
@@ -686,31 +671,26 @@ async def play(ctx, *, search = None, autoplay = None):
 					embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {i} / {len(playlist)}", icon_url = music_icon)
 					embed_msg = await ctx.send(embed = embed)
 
-				if (not verify_yt_id(playlist[i])):
-					result = search_yt(playlist[i])
-					if (result != None):
-						playlist[i] = result
-					else:
-						i += 1
-						continue
-				
-				if (playlist[i] not in video_info):
-					find_video_info(playlist[i])
-					updated_info.append(playlist[i])
+				playlist[i] = search_and_find_info(playlist[i])
+				if (playlist[i] == None):
+					i += 1
 
 				edit_needed = True
 		
 		embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
 		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+		if (i < 25):
+			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 		if (embed_msg == None):
 			embed_msg = await ctx.send(embed = embed)
 		else:
 			await embed_msg.edit(embed = embed)
 
+		threading.Thread(target = find_autoplay, args = (ctx.guild.id, playlist[-1], )).start()
+
 		for song in playlist:
-			if (song not in updated_info):
-				find_video_info(song)
-				updated_info.append(song)
+			if (not valid_url(video_info[song]["source"])):
+				threading.Thread(target = find_video_info, args = (song, True, )).start()
 
 async def play_url(guild, id):
 	if (info[guild]["voice"].is_playing()):
@@ -721,6 +701,15 @@ async def play_url(guild, id):
 	info[guild]["voice"].play(FFmpegPCMAudio(source = video_info[id]["source"], **FFMPEG_OPTIONS))
 	info[guild]["voice"].is_playing()
 	info[guild]["start_time"] = datetime.datetime.now()
+
+def find_autoplay(guild, id):
+	for vid in video_info[id]["recomended_vids"]:
+		if (vid not in info[guild]["past queue"]):
+			info[guild]["recomended_vid"] = vid
+			if (vid not in video_info):
+				print("finding autoplay info...")
+				find_video_info(vid)
+			break
 
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
@@ -770,7 +759,6 @@ def nowplaying_embed(guild, id):
 	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
 	
 	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
-
 	thumbnail_embed = None
 	if (server_config[guild]["large nowplaying thumbnail"]):
 		thumbnail_embed = discord.Embed(color = snoo_color)
@@ -786,7 +774,7 @@ def nowplaying_embed(guild, id):
 		embed.add_field(name = language[lang_set]['ui']['field']['upload_date'], value = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8])).strftime("%b %d %Y"), inline=True)
 
 	#embed.add_field(name='Duration:', value = play_bar, inline=False)
-	
+
 	return [embed, thumbnail_embed]
 
 @snoo.command()
@@ -807,8 +795,6 @@ async def update_nowplaying(guild):
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
 				find_video_info(info[guild]["queue"][0])
-				if (id not in updated_info):
-					updated_info.append(id)
 				await play_url(guild, info[guild]["queue"][0])
 		info[guild]["nowplaying_edits"] += 1
 		if (info[guild]["nowplaying_edits"] > 300):
@@ -830,13 +816,9 @@ async def play_next(guild):
 		del info[guild]["queue"][0]
 
 	if (len(info[guild]["queue"]) > 0):
-		await play_url(guild, info[guild]["queue"][0])#, not info[guild]["looping"])
+		await play_url(guild, info[guild]["queue"][0])
 	elif (info[guild]["autoplay"]):
-		for vid in video_info[current_url]["recomended_vids"]:
-			if (vid not in info[guild]["past queue"]):
-				print(vid)
-				await play(info[guild]["channel"], autoplay = vid)
-				break
+		await play(info[guild]["channel"], autoplay = info[guild]["recomended_vid"])
 
 	await info[guild]["thumbnail"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[1])
 	
@@ -866,11 +848,11 @@ async def pause(ctx):
 @snoo.command()
 async def stop(ctx):
 	if (ctx.guild.id in info and len(info[ctx.guild.id]["queue"]) >= 1):
-		info[ctx.guild.id]["queue"].clear()
+		#info[ctx.guild.id]["queue"].clear()
 		info[ctx.guild.id]["voice"].stop()
 		info[ctx.guild.id]["task"].cancel()
 		await info[ctx.guild.id]["voice"].disconnect()
-		#info.pop(ctx.guild.id)
+		info.pop(ctx.guild.id)
 
 		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
 		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
@@ -879,57 +861,54 @@ async def stop(ctx):
 @snoo.command()
 async def queue(ctx):
 	if (info[ctx.guild.id]["voice"].is_playing()):
-		if (len(info[ctx.guild.id]["queue"]) > 1):
-			embed=discord.Embed(title = "", description = "", color=snoo_color)
-			embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queue'].upper()}", icon_url=music_icon)
-			
-			songs = ""
-			durations = ""
-			early_break = False
-			#channels = ""
-			total_time = 0
-			for video in info[ctx.guild.id]["queue"]:
-				total_time += video_info[video]["secs_length"]
+		embed=discord.Embed(title = "", description = "", color=snoo_color)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queue'].upper()}", icon_url=music_icon)
+		
+		songs = ""
+		durations = ""
+		early_break = False
+		#channels = ""
+		total_time = 0
+		for video in info[ctx.guild.id]["queue"]:
+			total_time += video_info[video]["secs_length"]
 
-			for i in range(len(info[ctx.guild.id]["queue"])):
-				if (i == 0):
-					embed.add_field(name = f'<a:MusicBars:917119951603646505> {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
-					embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-					embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
-					embed.set_thumbnail(url=video_info[info[ctx.guild.id]["queue"][i]]["thumbnail"])
-				else:
-					#embed.add_field(name = f'{i} {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
-					#embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-					#embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
+		for i in range(len(info[ctx.guild.id]["queue"])):
+			if (i == 0):
+				embed.add_field(name = f'<a:MusicBars:917119951603646505> {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
+				embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+				embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
+				embed.set_thumbnail(url=video_info[info[ctx.guild.id]["queue"][i]]["thumbnail"])
+			else:
+				#embed.add_field(name = f'{i} {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
+				#embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+				#embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
 
-					chr_per_row = 40
-					if (len(songs) < 1024 - chr_per_row):
-						songs += f"**{i}** " + video_info[info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
-						if (len(video_info[info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
-							songs += "...\n"
-						else:
-							songs += "\n"
-					else: 
-						early_break = True
-						embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
-						break
+				chr_per_row = 40
+				if (len(songs) < 1024 - chr_per_row):
+					songs += f"**{i}** " + video_info[info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
+					if (len(video_info[info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
+						songs += "...\n"
+					else:
+						songs += "\n"
+				else: 
+					early_break = True
+					embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
+					break
 
-					#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
-					durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
+				#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
+				durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
 
+		if (songs != ""):
 			embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
-			#embed.add_field(name = "Channel", value = channels, inline=True)
 			embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
 
-			if (not early_break):
-				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
-			
-			await ctx.send(embed=embed)
-		else:
-			embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
-			if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
-				info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
-			info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0])
+		if (info[ctx.guild.id]["autoplay"]):
+			embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[ctx.guild.id]["recomended_vid"]]["title"], inline = False)
+
+		if (not early_break):
+			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+		
+		await ctx.send(embed=embed)
 
 @snoo.command()
 async def skip(ctx):
@@ -1006,6 +985,18 @@ async def ping(ctx):
 	await ctx.send(str(delay_ms) + "ms")"""
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+
+def valid_url(uri: str) -> bool:
+    try:
+        with requests.get(uri, stream=True) as response:
+            try:
+                response.raise_for_status()
+                return True
+            except requests.exceptions.HTTPError:
+                return False
+    except requests.exceptions.ConnectionError:
+        return False
+
 def verify_yt_id(video_id):
     checker_url = "https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v="
     video_url = checker_url + video_id
