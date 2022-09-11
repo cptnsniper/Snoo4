@@ -32,6 +32,9 @@ import plotly.express as px
 from difflib import SequenceMatcher
 from copy import deepcopy
 from random import shuffle
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 intents = discord.Intents.default()
 intents.presences = True
@@ -53,7 +56,7 @@ video_info = defaultdict(dict)
 
 admin_command_message = "you need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.32 (completely redo play for playlists) BETA"
+version = "0.4.33 (completely redo play for playlists) BETA"
 lang_set = "English"
 
 default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
@@ -435,6 +438,42 @@ async def playlist(ctx, *, arg1 = None):
 
 info = {}
 
+@snoo.command()
+async def find_playlist(ctx, playlist):
+	await ctx.send(find_videos_playlist(playlist))
+
+def find_videos_playlist(playlist):
+	linklist = []
+	if ("&playnext" in playlist):
+		en = playlist.find("&playnext")
+		playlist = playlist[:en]
+	if ("watch?v=" in playlist):
+		start = '.com/'
+		end = 'list'
+		st = playlist.find(start) + len(start)
+		en = playlist.find(end)
+		playlist = playlist.replace(playlist[st:en], "playlist?")
+
+	driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+	driver.get(playlist)
+	page = driver.page_source
+	soup = bs(page,'html.parser')
+
+	if ("music" in playlist):
+		dirs = soup.findAll('a', {'class': 'yt-simple-endpoint style-scope yt-formatted-string'})[1:]
+	else:
+		dirs = soup.findAll('a', {'class': 'yt-simple-endpoint style-scope ytd-playlist-video-renderer'})
+
+	for link in dirs:
+		if ("watch?v=" in link["href"]):
+			start = 'watch?v='
+			end = '&list'
+			st = link["href"].find(start) + len(start)
+			en = link["href"].find(end)
+			linklist.append(link["href"][st:en])
+	
+	return linklist
+
 def find_video_info(id, only_source = False):
 	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
 	with YoutubeDL(YDL_OPTIONS) as ydl:
@@ -499,7 +538,8 @@ def search_and_find_info(search):
 		result = search
 	
 	if (result not in video_info):
-		find_video_info(result)
+		if (not find_video_info(result)):
+			return None
 	
 	return result
 
@@ -521,14 +561,17 @@ async def play(ctx, *, search = None, autoplay = None):
 		searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
 
 		if (ctx.message.reference is None):
-			if (verify_yt_id(yt_id(search))):
-				print(yt_id(search))
+			if (validators.url(search) and "youtube" in search and "list=" in search):
+				playlist = find_videos_playlist(search)
+			elif (verify_yt_id(yt_id(search))):
 				id = yt_id(search)
 		else:
 			msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 			if (len(find_url(msg.content)) >= 1):
 				temp_url = find_url(msg.content)[0]
-				if (verify_yt_id(yt_id(temp_url))):
+				if ("youtube" in temp_url and "list=" in temp_url):
+					playlist = find_videos_playlist(temp_url)
+				elif (verify_yt_id(yt_id(temp_url))):
 					id = yt_id(temp_url)
 				else:
 					search = msg.content
@@ -550,10 +593,11 @@ async def play(ctx, *, search = None, autoplay = None):
 					search = msg.content
 
 		if (id == None):
-			if (search[0] == "[" and search[-1] == "]"):
-				playlist = search.strip('][').split(', ')
-			elif (search in playlists):
-				playlist = playlists[search]["songs"]
+			if (playlist == None):
+				if (search[0] == "[" and search[-1] == "]"):
+					playlist = search.strip('][').split(', ')
+				elif (search in playlists):
+					playlist = playlists[search]["songs"]
 			
 			if (playlist != None):
 				if (len(info[ctx.guild.id]["queue"]) < 1):
@@ -640,6 +684,8 @@ async def play(ctx, *, search = None, autoplay = None):
 	if (playlist != None):
 		for i in range(len(playlist)):
 			playlist[i] = yt_id(playlist[i])
+			#print(playlist[i])
+			#print(threading.Thread(target = search_and_find_info, args = (playlist[i], )).start())
 
 		embed = discord.Embed(color = snoo_color)
 		
@@ -673,7 +719,7 @@ async def play(ctx, *, search = None, autoplay = None):
 
 				playlist[i] = search_and_find_info(playlist[i])
 				if (playlist[i] == None):
-					i += 1
+					playlist.pop(i)
 
 				edit_needed = True
 		
@@ -689,6 +735,8 @@ async def play(ctx, *, search = None, autoplay = None):
 		threading.Thread(target = find_autoplay, args = (ctx.guild.id, playlist[-1], )).start()
 
 		for song in playlist:
+			if (song == None):
+				continue
 			if (not valid_url(video_info[song]["source"])):
 				threading.Thread(target = find_video_info, args = (song, True, )).start()
 
@@ -997,7 +1045,7 @@ def valid_url(uri: str) -> bool:
     except requests.exceptions.ConnectionError:
         return False
 
-def verify_yt_id(video_id):
+def verify_yt_id(video_id: str):
     checker_url = "https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v="
     video_url = checker_url + video_id
 

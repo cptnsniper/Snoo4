@@ -12,3 +12,5 @@ bs4
 plotly
 kaleido
 cryptography
+selenium
+webdriver-manager
