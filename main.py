@@ -35,6 +35,8 @@ from random import shuffle
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from pytube import Playlist
+import queue
 
 intents = discord.Intents.default()
 intents.presences = True
@@ -442,45 +444,28 @@ info = {}
 async def find_playlist(ctx, playlist):
 	await ctx.send(find_videos_playlist(playlist))
 
-def find_videos_playlist(playlist):
+def find_videos_playlist(playlist_url):
 	linklist = []
-	if ("&playnext" in playlist):
-		en = playlist.find("&playnext")
-		playlist = playlist[:en]
-	if ("watch?v=" in playlist):
-		start = '.com/'
-		end = 'list'
-		st = playlist.find(start) + len(start)
-		en = playlist.find(end)
-		playlist = playlist.replace(playlist[st:en], "playlist?")
+	playlist = []
 
-	driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-	driver.get(playlist)
-	page = driver.page_source
-	soup = bs(page,'html.parser')
+	try:
+		playlist_info = Playlist(playlist_url)
+		linklist = playlist_info.video_urls
+	except:
+		print("failed to fetch playlist info for: ", playlist_url)
 
-	if ("music" in playlist):
-		dirs = soup.findAll('a', {'class': 'yt-simple-endpoint style-scope yt-formatted-string'})[1:]
-	else:
-		dirs = soup.findAll('a', {'class': 'yt-simple-endpoint style-scope ytd-playlist-video-renderer'})
-
-	for link in dirs:
-		if ("watch?v=" in link["href"]):
-			start = 'watch?v='
-			end = '&list'
-			st = link["href"].find(start) + len(start)
-			en = link["href"].find(end)
-			linklist.append(link["href"][st:en])
+	for link in linklist:
+		playlist.append(yt_id(link))
 	
-	return linklist
+	return playlist
 
 def find_video_info(id, only_source = False):
-	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
+	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
 	with YoutubeDL(YDL_OPTIONS) as ydl:
 		try:
 			vid = ydl.extract_info(id, download=False)
 		except:
-			print("Failed to fetch video info", id)
+			print("failed to fetch video info for: ", id)
 			return False
 
 	#id = vid["id"]
@@ -542,6 +527,30 @@ def search_and_find_info(search):
 			return None
 	
 	return result
+
+def find_playlist_index(queue, thread):
+	while True:
+		queue_index = queue.get()
+		playlist = queue_index[0]
+		index = queue_index[1]
+		playlist[index] = search_and_find_info(playlist[index])
+		queue.task_done()
+		print(f"thread #{thread}: queued index #{index}")
+
+q = queue.Queue()
+
+def thread_find_playlist(playlist):
+	for i in range(10):
+		threading.Thread(target = find_playlist_index, args = (q, i), daemon = True).start()
+
+	playlist[-1] = yt_id(playlist[-1])
+	q.put((playlist, -1))
+
+	for i in range(len(playlist) - 1):
+		playlist[i] = yt_id(playlist[i])
+		q.put((playlist, i))
+
+	q.join()
 
 @snoo.command()
 async def play(ctx, *, search = None, autoplay = None):
@@ -681,64 +690,9 @@ async def play(ctx, *, search = None, autoplay = None):
 
 		threading.Thread(target = find_autoplay, args = (ctx.guild.id, id, )).start()
 
-	if (playlist != None):
-		for i in range(len(playlist)):
-			playlist[i] = yt_id(playlist[i])
-			#print(playlist[i])
-			#print(threading.Thread(target = search_and_find_info, args = (playlist[i], )).start())
-
-		embed = discord.Embed(color = snoo_color)
-		
-		embed_msg = None
-		edit_needed = False
-		i = 0
-		total_time = 0
-		while (i < len(playlist)):
-			if (playlist[i] in video_info):
-				info[ctx.guild.id]["queue"].append(playlist[i])
-				total_time += video_info[playlist[i]]["secs_length"]
-				if (i < 25):
-					embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
-				else:
-					embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(i - 24, format_time(total_time)))
-
-				if (edit_needed):
-					if (i == 0):
-						embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-					embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {i + 1} / {len(playlist)}", icon_url = music_icon)
-					await embed_msg.edit(embed = embed)
-					edit_needed = False
-
-				i += 1
-			else:
-				if (embed_msg == None):
-					if (i > 0):
-						embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-					embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {i} / {len(playlist)}", icon_url = music_icon)
-					embed_msg = await ctx.send(embed = embed)
-
-				playlist[i] = search_and_find_info(playlist[i])
-				if (playlist[i] == None):
-					playlist.pop(i)
-
-				edit_needed = True
-		
-		embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
-		if (i < 25):
-			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
-		if (embed_msg == None):
-			embed_msg = await ctx.send(embed = embed)
-		else:
-			await embed_msg.edit(embed = embed)
-
-		threading.Thread(target = find_autoplay, args = (ctx.guild.id, playlist[-1], )).start()
-
-		for song in playlist:
-			if (song == None):
-				continue
-			if (not valid_url(video_info[song]["source"])):
-				threading.Thread(target = find_video_info, args = (song, True, )).start()
+	if (playlist != None and len(playlist) > 0):
+		threading.Thread(target = thread_find_playlist, args = (playlist, )).start()
+		await queued_embed(ctx, playlist)
 
 async def play_url(guild, id):
 	if (info[guild]["voice"].is_playing()):
@@ -758,6 +712,51 @@ def find_autoplay(guild, id):
 				print("finding autoplay info...")
 				find_video_info(vid)
 			break
+
+async def queued_embed(ctx, playlist):
+	edit_needed = False
+	i = 0
+	total_time = 0
+
+	embed = discord.Embed(color = snoo_color)
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
+	embed_msg = await ctx.send(embed = embed)
+
+	while (i < len(playlist)):
+		if (playlist[i] in video_info):
+			info[embed_msg.guild.id]["queue"].append(playlist[i])
+			total_time += video_info[playlist[i]]["secs_length"]
+			if (i == 0):
+				embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
+			if (i < 25):
+				embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
+			else:
+				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(i - 24, format_time(total_time)))
+
+			if (edit_needed):
+				if (i == 0):
+					embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
+				embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {i + 1} / {len(playlist)}", icon_url = music_icon)
+				
+				await embed_msg.edit(embed = embed)
+				edit_needed = False
+			
+			i += 1
+		elif (playlist[i] == None):
+			i += 1
+		else:
+			edit_needed = True
+
+	embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	if (len(playlist) < 25):
+		embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+	if (embed_msg == None):
+		embed_msg = await embed_msg.send(embed = embed)
+	else:
+		await embed_msg.edit(embed = embed)
+
+	find_autoplay(embed_msg.guild.id, playlist[-1])
 
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
@@ -838,12 +837,15 @@ async def nowplaying(ctx):
 async def update_nowplaying(guild):
 	try:
 		if (len(info[guild]["queue"]) > 0 and info[guild]["nowplaying_edits"] >= 0):
+
 			if (info[guild]["voice"].is_playing()):
 				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[0])
+
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
 				find_video_info(info[guild]["queue"][0])
 				await play_url(guild, info[guild]["queue"][0])
+
 		info[guild]["nowplaying_edits"] += 1
 		if (info[guild]["nowplaying_edits"] > 300):
 			info[guild]["nowplaying_edits"] = 0
@@ -854,6 +856,7 @@ async def update_nowplaying(guild):
 				info[guild]["thumbnail"] = await info[guild]["channel"].send(embed = embeds[1])
 			await info[guild]["nowplaying"].delete()
 			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = embeds[0])
+
 	except:
 		print("update failed")
 
@@ -1208,12 +1211,16 @@ async def new_save():
 
 	print("Saved")
 
-async def async_timer(interval, func, arg = None):
+async def async_timer(interval, func, arg1 = None, arg2 = None, arg3 = None):
 	while True:
-		if (arg == None):
+		if (arg1 == None):
 			await asyncio.gather(asyncio.sleep(interval), func(),)
+		elif (arg2 == None):
+			await asyncio.gather(asyncio.sleep(interval), func(arg1),)
+		elif (arg3 == None):
+			await asyncio.gather(asyncio.sleep(interval), func(arg1, arg2),)
 		else:
-			await asyncio.gather(asyncio.sleep(interval), func(arg),)
+			await asyncio.gather(asyncio.sleep(interval), func(arg1, arg2, arg3),)
 
 # _________________________________________________________________ RUN _________________________________________________________________
 
