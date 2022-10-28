@@ -1,13 +1,10 @@
-import ctypes
-from hashlib import new
-from http import server
-from importlib.resources import contents
-from xmlrpc.client import FastMarshaller
+from gc import callbacks
 import discord
 from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
 from discord.ext.commands import CommandNotFound
+from discord.ui import Button, View
 import os
 import validators
 import json
@@ -32,15 +29,12 @@ import plotly.express as px
 from difflib import SequenceMatcher
 from copy import deepcopy
 from random import shuffle
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from pytube import Playlist
 import queue
 
-intents = discord.Intents.default()
-intents.presences = True
-intents.members = True
+intents = discord.Intents.all()
+"""intents.presences = True
+intents.members = True"""
 snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo '], intents=intents)
 
 # _________________________________________________________________ DATA _________________________________________________________________
@@ -58,7 +52,7 @@ video_info = defaultdict(dict)
 
 admin_command_message = "you need to be my master to use this command!"
 snoo_color = 0xe0917a
-version = "0.4.33 (completely redo play for playlists) BETA"
+version = "0.4.34 (buttons) BETA"
 lang_set = "English"
 
 default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
@@ -663,7 +657,7 @@ async def play(ctx, *, search = None, autoplay = None):
 				embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
 				if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
 					info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
-				info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0])
+				info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0], view = embeds[2])
 
 				if (message != None):
 					await message.delete()
@@ -805,7 +799,7 @@ def nowplaying_embed(guild, id):
 
 	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
 	
-	embed=discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
+	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
 	thumbnail_embed = None
 	if (server_config[guild]["large nowplaying thumbnail"]):
 		thumbnail_embed = discord.Embed(color = snoo_color)
@@ -819,23 +813,43 @@ def nowplaying_embed(guild, id):
 		embed.add_field(name = language[lang_set]['ui']['field']['views'], value = "{:,}".format(video_info[id]["views"]), inline=True)
 		publish_date = str(video_info[id]["publish_date"])
 		embed.add_field(name = language[lang_set]['ui']['field']['upload_date'], value = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8])).strftime("%b %d %Y"), inline=True)
+	
+	view = View()
 
-	#embed.add_field(name='Duration:', value = play_bar, inline=False)
+	button = Button(emoji = "<:back:1035618514800754768>")
+	button.callback = back_button
+	view.add_item(button)
 
-	return [embed, thumbnail_embed]
+	emoji = "<:pause:1035617459295764490>"
+	if (info[guild]["paused"]):
+		emoji = "<:play:1035617460541460520>"
+	button = Button(emoji = emoji)
+	button.callback = pause_button
+	view.add_item(button)
+
+	button = Button(emoji = "<:skip:1035618493376254044>")
+	button.callback = skip_button
+	view.add_item(button)
+
+	return [embed, thumbnail_embed, view]
 
 @snoo.command()
 async def nowplaying(ctx):
 	embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
+
 	if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
 		await info[ctx.guild.id]["thumbnail"].delete()
 		info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
 	await info[ctx.guild.id]["nowplaying"].delete()
-	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0])
+
+	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0], view = embeds[2])
 	info[ctx.guild.id]["channel"] = ctx.channel
 
 async def update_nowplaying(guild):
 	try:
+		if (info[guild]["paused"]):
+			return
+
 		if (len(info[guild]["queue"]) > 0 and info[guild]["nowplaying_edits"] >= 0):
 
 			if (info[guild]["voice"].is_playing()):
@@ -884,17 +898,6 @@ async def play_next(guild):
 			song_history[guild][user][-1][current_url] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
 		else:
 			song_history[guild][user][-1][current_url].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
-
-"""@snoo.command()
-async def pause(ctx):
-	if (not info[ctx.guild.id]["paused"]):
-		info[ctx.guild.id]["voice"].pause()
-		info[ctx.guild.id]["paused"] = True
-		await ctx.message.add_reaction("⏸️")
-	else:
-		info[ctx.guild.id]["voice"].resume()
-		info[ctx.guild.id]["paused"] = False
-		await ctx.message.add_reaction("▶️")"""
 
 @snoo.command()
 async def stop(ctx):
@@ -962,20 +965,89 @@ async def queue(ctx):
 		await ctx.send(embed=embed)
 
 @snoo.command()
+async def pause(ctx):
+	if (not info[ctx.guild.id]["paused"]):
+		info[ctx.guild.id]["voice"].pause()
+		info[ctx.guild.id]["paused"] = True
+		info[ctx.guild.id]["pause_time"] = datetime.datetime.now()
+		await ctx.message.add_reaction("⏸️")
+	else:
+		info[ctx.guild.id]["voice"].resume()
+		info[ctx.guild.id]["paused"] = False
+		info[ctx.guild.id]["start_time"] += datetime.datetime.now() - info[ctx.guild.id]["pause_time"]
+		await ctx.message.add_reaction("▶️")
+
+async def pause_button(interaction):
+	if (not info[interaction.guild.id]["paused"]):
+		info[interaction.guild.id]["voice"].pause()
+		info[interaction.guild.id]["paused"] = True
+		info[interaction.guild.id]["pause_time"] = datetime.datetime.now()
+
+		embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+		await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+	else:
+		info[interaction.guild.id]["voice"].resume()
+		info[interaction.guild.id]["paused"] = False
+		info[interaction.guild.id]["start_time"] += datetime.datetime.now() - info[interaction.guild.id]["pause_time"]
+
+		embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+		await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+
+@snoo.command()
 async def skip(ctx):
 	if (len(info[ctx.guild.id]["queue"]) > 1 or info[ctx.guild.id]["autoplay"]):
+		if (info[ctx.guild.id]["paused"]):
+			info[ctx.guild.id]["paused"] = False
+			embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
+			await ctx.edit(view = embeds[2])
+
 		await play_next(ctx.guild.id)
 	else:
 		await ctx.send(language[lang_set]["error"]["can_not_skip"])
 
+async def skip_button(interaction):
+	if (len(info[interaction.guild.id]["queue"]) > 1 or info[interaction.guild.id]["autoplay"]):
+		if (info[interaction.guild.id]["paused"]):
+			info[interaction.guild.id]["paused"] = False
+			embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+			await interaction.message.edit(view = embeds[2])
+
+		await play_next(interaction.guild.id)
+
+		member = await interaction.guild.fetch_member(interaction.user.id)
+		await interaction.response.send_message(language[lang_set]["notifs"]["skip"].format(member.nick))
+	else:
+		await interaction.response.send_message(language[lang_set]["error"]["can_not_skip"])
+
 @snoo.command()
 async def back(ctx):
 	if (len(info[ctx.guild.id]["past queue"]) >= 1):
+		if (info[ctx.guild.id]["paused"]):
+			info[ctx.guild.id]["paused"] = False
+			embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
+			await ctx.edit(view = embeds[2])
+
 		info[ctx.guild.id]["queue"].insert(1, info[ctx.guild.id]["past queue"][-1])
 		await play_next(ctx.guild.id)
 		del info[ctx.guild.id]["past queue"][-2:]
 	else:
 		await ctx.send(language[lang_set]["error"]["can_not_back"])
+
+async def back_button(interaction):
+	if (len(info[interaction.guild.id]["past queue"]) >= 1):
+		if (info[interaction.guild.id]["paused"]):
+			info[interaction.guild.id]["paused"] = False
+			embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+			await interaction.message.edit(view = embeds[2])
+		
+		info[interaction.guild.id]["queue"].insert(1, info[interaction.guild.id]["past queue"][-1])
+		await play_next(interaction.guild.id)
+		del info[interaction.guild.id]["past queue"][-2:]
+
+		member = await interaction.guild.fetch_member(interaction.user.id)
+		await interaction.response.send_message(language[lang_set]["notifs"]["back"].format(member.nick))
+	else:
+		await interaction.response.send_message(language[lang_set]["error"]["can_not_back"])
 
 async def check_if_song_ended(guild):
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
@@ -1028,12 +1100,20 @@ async def shuffle(ctx):
 
 # _________________________________________________________________ DEBUGING _________________________________________________________________
 
-"""@snoo.command()
-async def ping(ctx):
-	delay_time = datetime.datetime.now() - ctx.message.created_at
+@snoo.command()
+async def hi(ctx):
+	view = View()
+	button = Button(style = discord.ButtonStyle.primary, label = "hi", emoji = "😊")
+	button.callback = button_callback
+	view.add_item(button)
+	await ctx.send("hi", view = view)
+	"""delay_time = datetime.datetime.now() - ctx.message.created_at
 	delay_ms = delay_time.total_seconds() * 1000
 	delay_ms = round(delay_ms, 2)
 	await ctx.send(str(delay_ms) + "ms")"""
+
+async def button_callback(interaction):
+	await interaction.response.send_message("hi " + str(interaction.user) + "!")
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
 
