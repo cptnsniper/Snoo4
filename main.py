@@ -31,11 +31,12 @@ from copy import deepcopy
 from random import shuffle
 from pytube import Playlist
 import queue
+import random
 
 intents = discord.Intents.all()
 """intents.presences = True
 intents.members = True"""
-snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo '], intents=intents)
+snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo ', 'snute ', 'Snute '], intents=intents)
 
 # _________________________________________________________________ DATA _________________________________________________________________
 
@@ -453,48 +454,52 @@ def find_videos_playlist(playlist_url):
 	
 	return playlist
 
-def find_video_info(id, only_source = False):
-	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
-	with YoutubeDL(YDL_OPTIONS) as ydl:
-		try:
-			vid = ydl.extract_info(id, download=False)
-		except:
-			print("failed to fetch video info for: ", id)
-			return False
+def find_video_info(id, only_source = False, only_rec = False):
+	if (not only_rec):
+		YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
+		with YoutubeDL(YDL_OPTIONS) as ydl:
+			try:
+				vid = ydl.extract_info(id, download=False)
+			except:
+				print("failed to fetch video info for: ", id)
+				return False
 
-	#id = vid["id"]
-	if (only_source):
+		#id = vid["id"]
+		if (only_source):
+			video_info[id]["source"] = vid["url"]
+			return True
+
+		video_info[id] = {}
 		video_info[id]["source"] = vid["url"]
-		return True
+		video_info[id]["title"] = vid["title"]
+		video_info[id]["views"] = vid["view_count"]
+		video_info[id]["secs_length"] = vid["duration"]
+		video_info[id]["publish_date"] = vid["upload_date"]
+		video_info[id]["channel_link"] = vid["channel_url"]
+		video_info[id]["channel_name"] = vid["uploader"]
+		video_info[id]["thumbnail"] = vid["thumbnails"][-1]["url"]
 
-	video_info[id] = {}
-	video_info[id]["source"] = vid["url"]
-	video_info[id]["title"] = vid["title"]
-	video_info[id]["views"] = vid["view_count"]
-	video_info[id]["secs_length"] = vid["duration"]
-	video_info[id]["publish_date"] = vid["upload_date"]
-	video_info[id]["channel_link"] = vid["channel_url"]
-	video_info[id]["channel_name"] = vid["uploader"]
-	video_info[id]["thumbnail"] = vid["thumbnails"][-1]["url"]
+	try:
+		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
+		resp = requests.get('http://www.youtube.com/watch?v=' + id, headers=headers)
+		soup = bs(resp.text,'html.parser')
+		str_soup = str(soup.findAll('script'))
 
-	headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-	resp = requests.get('http://www.youtube.com/watch?v=' + id, headers=headers)
-	soup = bs(resp.text,'html.parser')
-	str_soup = str(soup.findAll('script'))
+		start = ',"secondaryResults":{"secondaryResults":'
+		end = '},"autoplay":{"autoplay":'
+		st = str_soup.find(start) + len(start)
+		en = str_soup.find(end)
+		substring = str_soup[st:en]
+		secondary_results = json.loads(substring)
 
-	start = ',"secondaryResults":{"secondaryResults":'
-	end = '},"autoplay":{"autoplay":'
-	st = str_soup.find(start) + len(start)
-	en = str_soup.find(end)
-	substring = str_soup[st:en]
-	secondary_results = json.loads(substring)
-
-	video_info[id]["recomended_vids"] = []
-	for i in range(len(secondary_results["results"])):
-		if ("compactVideoRenderer" not in secondary_results["results"][i]):
-			continue
-		elif ("hour" not in secondary_results["results"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
-			video_info[id]["recomended_vids"].append(secondary_results["results"][i]["compactVideoRenderer"]["videoId"])
+		video_info[id]["recomended_vids"] = []
+		for i in range(len(secondary_results["results"])):
+			if ("compactVideoRenderer" not in secondary_results["results"][i]):
+				continue
+			elif ("hour" not in secondary_results["results"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
+				video_info[id]["recomended_vids"].append(secondary_results["results"][i]["compactVideoRenderer"]["videoId"])
+	except:
+		print("failed to find recomended vid for: " + id)
 
 	return True
 
@@ -555,7 +560,7 @@ async def play(ctx, *, search = None, autoplay = None):
 
 	if (autoplay == None):
 		if (ctx.guild.id not in info):
-			info[ctx.guild.id] = {"channel": ctx.channel, "voice": get(snoo.voice_clients, guild = ctx.guild), "paused": False, "looping": False, "autoplay": True, "queue": [], "past queue": []}
+			info[ctx.guild.id] = {"channel": ctx.channel, "voice": get(snoo.voice_clients, guild = ctx.guild), "paused": False, "looping": False, "autoplay": True, "shuffle": False, "queue": [], "past queue": [], "processing": False}
 		
 		if (type(ctx.message.author.voice) == type(None)):
 			await ctx.send(language[lang_set]["error"]["no_vc"])
@@ -699,12 +704,16 @@ async def play_url(guild, id):
 	info[guild]["start_time"] = datetime.datetime.now()
 
 def find_autoplay(guild, id):
+	if ("recomended_vids" not in video_info[id]):
+		find_video_info(id, only_rec = True)
+
 	for vid in video_info[id]["recomended_vids"]:
 		if (vid not in info[guild]["past queue"]):
 			info[guild]["recomended_vid"] = vid
 			if (vid not in video_info):
-				print("finding autoplay info...")
-				find_video_info(vid)
+				if (not find_video_info(vid)):
+					continue
+			print("autoplay: " + vid)
 			break
 
 async def queued_embed(ctx, playlist):
@@ -847,7 +856,7 @@ async def nowplaying(ctx):
 
 async def update_nowplaying(guild):
 	try:
-		if (info[guild]["paused"]):
+		if (info[guild]["paused"] or info[guild]["processing"]):
 			return
 
 		if (len(info[guild]["queue"]) > 0 and info[guild]["nowplaying_edits"] >= 0):
@@ -865,11 +874,13 @@ async def update_nowplaying(guild):
 			info[guild]["nowplaying_edits"] = 0
 
 			embeds = nowplaying_embed(guild, info[guild]["queue"][0])
+
 			if (server_config[guild]["large nowplaying thumbnail"]):
 				await info[guild]["thumbnail"].delete()
 				info[guild]["thumbnail"] = await info[guild]["channel"].send(embed = embeds[1])
 			await info[guild]["nowplaying"].delete()
-			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = embeds[0])
+
+			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = embeds[0], view = embeds[2])
 
 	except:
 		print("update failed")
@@ -1014,8 +1025,9 @@ async def skip_button(interaction):
 
 		await play_next(interaction.guild.id)
 
-		member = await interaction.guild.fetch_member(interaction.user.id)
-		await interaction.response.send_message(language[lang_set]["notifs"]["skip"].format(member.nick))
+		#member = await interaction.guild.fetch_member(interaction.user.id)
+		await interaction.response.defer()
+		#await interaction.response.send_message(language[lang_set]["notifs"]["skip"].format(member.nick))
 	else:
 		await interaction.response.send_message(language[lang_set]["error"]["can_not_skip"])
 
@@ -1044,8 +1056,9 @@ async def back_button(interaction):
 		await play_next(interaction.guild.id)
 		del info[interaction.guild.id]["past queue"][-2:]
 
-		member = await interaction.guild.fetch_member(interaction.user.id)
-		await interaction.response.send_message(language[lang_set]["notifs"]["back"].format(member.nick))
+		#member = await interaction.guild.fetch_member(interaction.user.id)
+		await interaction.response.defer()
+		#await interaction.response.send_message(language[lang_set]["notifs"]["back"].format(member.nick))
 	else:
 		await interaction.response.send_message(language[lang_set]["error"]["can_not_back"])
 
@@ -1087,16 +1100,21 @@ async def autoplay(ctx):
 			info[ctx.guild.id]["autoplay"] = True
 			await ctx.send(language[lang_set]["notifs"]["autoplay_start"])
 
-"""@snoo.command()
+@snoo.command()
 async def shuffle(ctx):
-	if (info["voice"].is_playing()):
-		nowplaying = info["queue"][0]
-		info["queue"].remove(info["queue"][0])
+	if (info[ctx.guild.id]["voice"].is_playing()):
+		if (not info[ctx.guild.id]["shuffle"]):
+			nowplaying = info[ctx.guild.id]["queue"][0]
+			info[ctx.guild.id]["original queue"] = info[ctx.guild.id]["queue"]
 
-		random.shuffle(info["queue"])
+			info[ctx.guild.id]["queue"].remove(info[ctx.guild.id]["queue"][0])
+			random.shuffle(info[ctx.guild.id]["queue"])
 
-		info["queue"].insert(0, nowplaying)
-		await ctx.send("I have shuffled the current queue!")"""
+			info[ctx.guild.id]["queue"].insert(0, nowplaying)
+			await ctx.send("I have shuffled the current queue!")
+		else:
+			info[ctx.guild.id]["queue"] = info[ctx.guild.id]["original queue"]
+			await ctx.send("I have unshuffled the current queue!")
 
 # _________________________________________________________________ DEBUGING _________________________________________________________________
 
