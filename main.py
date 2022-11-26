@@ -1,91 +1,53 @@
-from gc import callbacks
 import discord
 from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
-from discord.ext.commands import CommandNotFound
 from discord.ui import Button, View
 import os
-import validators
 import json
 import datetime
-import threading
+from threading import Thread, Timer
 import asyncio
-import math
-import pandas as pd
-from collections import defaultdict
-from typing import Union
+from math import fsum
+from pandas import DataFrame
 from cryptography.fernet import Fernet
-import urllib
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, urlencode, parse_qs
+from urllib.request import urlopen
 from contextlib import suppress
-import re
-from validators.url import url
+from re import findall
 from youtube_dl import YoutubeDL
 from bs4 import BeautifulSoup as bs
-import socket
-import requests
-import plotly.express as px
-from difflib import SequenceMatcher
+from socket import gethostname
+from requests import get as r_get
+from requests import exceptions
+from plotly.express import line as px_line
+from difflib import SequenceMatcher 
 from copy import deepcopy
 from random import shuffle
 from pytube import Playlist
 import queue
-import random
+
+from System.system import *
 
 intents = discord.Intents.all()
-"""intents.presences = True
-intents.members = True"""
-snoo = commands.Bot(command_prefix=['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo ', 'snute ', 'Snute '], intents=intents)
-
-# _________________________________________________________________ DATA _________________________________________________________________
-
-profile_data = defaultdict(dict)
-channel_messages = defaultdict(dict)
-song_history = defaultdict(dict)
-server_config = defaultdict(dict)
-playlists = defaultdict(dict)
-language = defaultdict(dict)
-missing_translations = defaultdict(dict)
-video_info = defaultdict(dict)
-
-# _________________________________________________________________ GLOBAL VARS _________________________________________________________________
-
-admin_command_message = "you need to be my master to use this command!"
-snoo_color = 0xe0917a
-version = "0.4.34 (buttons) BETA"
-lang_set = "English"
-
-default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
-settings_info = {
-	"votes": {"dev": False},
-	"downvote": {"dev": False},
-	"slim nowplaying": {"dev": False},
-	"large nowplaying thumbnail": {"dev": False}
-}
-
-new_playlist = {"title": "new playlist", "desc": "", "cover": "https://cdn.discordapp.com/attachments/908157040155832350/999112912352333854/snoo_cover.png", "songs": []}
-
-loading_icon = "<a:loading:977336498322030612>"
-poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
-music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
-profile_icon = "https://media.discordapp.net/attachments/908157040155832350/931732724203520000/profile.png"
-award_icon = "https://cdn.discordapp.com/attachments/908157040155832350/958841770765066280/award_icon.png"
-settings_icon = "https://cdn.discordapp.com/attachments/908157040155832350/985595253174190080/snoo_icon.png"
+snoo = commands.Bot(command_prefix = prefix, intents=intents)
 
 @snoo.event
 async def on_ready():
-	print(f'We have logged in as {snoo.user}')
+	print(f'we have logged in as {snoo.user}')
+	await snoo.tree.sync(guild=discord.Object(id = 816745591459545120))
 	
-	await snoo.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="with my master's sanity"))
+	await snoo.change_presence(activity=discord.Activity(type = discord.ActivityType.playing, name = "music for my friends!"))
 	channel = snoo.get_channel(865007153109663765)
 
 	await initialize_data()
 	verify_lang()
+	print("imported data")
 	str_json(missing_translations)
 	await channel.send(file=discord.File('Cache/string.json'))
 	asyncio.create_task(async_timer(60 * 6, new_save))
-	await channel.send(f"running version: {version} on {socket.gethostname()}")
+
+	await channel.send(f"running version: {version} on {gethostname()}")
 	
 async def initialize_data():
 	if (not os.path.isdir('Data Files')):
@@ -192,7 +154,7 @@ def loop_lang_cat(cat, cat2 = None):
 
 @snoo.event
 async def on_command_error(ctx, error):
-    if isinstance(error, CommandNotFound):
+    if isinstance(error, commands.CommandNotFound):
         return
     raise error
 
@@ -214,7 +176,7 @@ async def on_message(message):
 	verify_settings(message.guild.id)
 
 	if (server_config[message.guild.id]["votes"]):
-		if (message.attachments or validators.url(message.content) or '*image*' in message.content.lower()):
+		if (message.attachments or len(find_url(message.content)) >= 1 or '*image*' in message.content.lower()):
 			upvote = None
 			downvote = None
 
@@ -374,7 +336,7 @@ async def profile(ctx, *, user: discord.User = 123):
 	embed.add_field(name = language[lang_set]['ui']['field']['friendship']['title'], value = language[lang_set]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
 	embed.add_field(name = language[lang_set]['ui']['field']['messages']['title'], value = language[lang_set]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = language[lang_set]['ui']['field']['vc_hours']['title'], value = language[lang_set]['ui']['field']['vc_hours']['desc'].format(math.fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
+	embed.add_field(name = language[lang_set]['ui']['field']['vc_hours']['title'], value = language[lang_set]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
 	
 	await ctx.send(embed=embed)
 
@@ -383,12 +345,12 @@ async def graph(ctx, type, *, data: discord.User):
 	#if (type(data) == discord.TextChannel):
 	#	df = pd.DataFrame(channel_messages[ctx.guild.id][data.id], columns = ['Messages'])
 	#else:
-	df = pd.DataFrame(profile_data[ctx.guild.id][data.id][type], columns = [type])
+	df = DataFrame(profile_data[ctx.guild.id][data.id][type], columns = [type])
 	message = await ctx.send(f"Graphing {loading_icon}")
 
 	#layout = Layout(plot_bgcolor='rgb(47,49,54)')
 
-	fig = px.line(df, markers=False, template = "seaborn")
+	fig = px_line(df, markers=False, template = "seaborn")
 	fig['data'][0]['line']['color']="#FF4400"
 	#fig.update_layout(paper_bgcolor="#2f3136")
 	fig.write_image("Cache/graph.png")
@@ -432,8 +394,6 @@ async def playlist(ctx, *, arg1 = None):
 		await ctx.send(embed = embed)
 
 # _________________________________________________________________ MUSIC _________________________________________________________________
-
-info = {}
 
 @snoo.command()
 async def find_playlist(ctx, playlist):
@@ -481,7 +441,7 @@ def find_video_info(id, only_source = False, only_rec = False):
 
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-		resp = requests.get('http://www.youtube.com/watch?v=' + id, headers=headers)
+		resp = r_get('http://www.youtube.com/watch?v=' + id, headers=headers)
 		soup = bs(resp.text,'html.parser')
 		str_soup = str(soup.findAll('script'))
 
@@ -504,9 +464,9 @@ def find_video_info(id, only_source = False, only_rec = False):
 	return True
 
 def search_yt(search):
-	query_string = urllib.parse.urlencode({'search_query' : search})
-	html_content = urllib.request.urlopen('http://www.youtube.com/results?' + query_string)
-	search_results = re.findall(r"watch\?v=(\S{11})", html_content.read().decode())
+	query_string = urlencode({'search_query' : search})
+	html_content = urlopen('http://www.youtube.com/results?' + query_string)
+	search_results = findall(r"watch\?v=(\S{11})", html_content.read().decode())
 
 	if (len(search_results) > 0):
 		return search_results[0]
@@ -540,7 +500,7 @@ q = queue.Queue()
 
 def thread_find_playlist(playlist):
 	for i in range(10):
-		threading.Thread(target = find_playlist_index, args = (q, i), daemon = True).start()
+		Thread(target = find_playlist_index, args = (q, i), daemon = True).start()
 
 	playlist[-1] = yt_id(playlist[-1])
 	q.put((playlist, -1))
@@ -550,6 +510,11 @@ def thread_find_playlist(playlist):
 		q.put((playlist, i))
 
 	q.join()
+
+@snoo.tree.context_menu(name = "Play", guild=discord.Object(id = 816745591459545120))
+async def first_command(interaction: discord.Interaction, message: discord.Message):
+	await play(message)
+	await interaction.response.defer()
 
 @snoo.command()
 async def play(ctx, *, search = None, autoplay = None):
@@ -569,7 +534,7 @@ async def play(ctx, *, search = None, autoplay = None):
 		searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
 
 		if (ctx.message.reference is None):
-			if (validators.url(search) and "youtube" in search and "list=" in search):
+			if (len(find_url(msg.content)) >= 1 and "youtube" in search and "list=" in search):
 				playlist = find_videos_playlist(search)
 			elif (verify_yt_id(yt_id(search))):
 				id = yt_id(search)
@@ -687,10 +652,10 @@ async def play(ctx, *, search = None, autoplay = None):
 		else:
 			await play_url(ctx.guild.id, id)
 
-		threading.Thread(target = find_autoplay, args = (ctx.guild.id, id, )).start()
+		Thread(target = find_autoplay, args = (ctx.guild.id, id, )).start()
 
 	if (playlist != None and len(playlist) > 0):
-		threading.Thread(target = thread_find_playlist, args = (playlist, )).start()
+		Thread(target = thread_find_playlist, args = (playlist, )).start()
 		await queued_embed(ctx, playlist)
 
 async def play_url(guild, id):
@@ -1108,7 +1073,7 @@ async def shuffle(ctx):
 			info[ctx.guild.id]["original queue"] = info[ctx.guild.id]["queue"]
 
 			info[ctx.guild.id]["queue"].remove(info[ctx.guild.id]["queue"][0])
-			random.shuffle(info[ctx.guild.id]["queue"])
+			shuffle(info[ctx.guild.id]["queue"])
 
 			info[ctx.guild.id]["queue"].insert(0, nowplaying)
 			await ctx.send("I have shuffled the current queue!")
@@ -1137,20 +1102,20 @@ async def button_callback(interaction):
 
 def valid_url(uri: str) -> bool:
     try:
-        with requests.get(uri, stream=True) as response:
+        with r_get(uri, stream=True) as response:
             try:
                 response.raise_for_status()
                 return True
-            except requests.exceptions.HTTPError:
+            except exceptions.HTTPError:
                 return False
-    except requests.exceptions.ConnectionError:
+    except exceptions.ConnectionError:
         return False
 
 def verify_yt_id(video_id: str):
     checker_url = "https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v="
     video_url = checker_url + video_id
 
-    request = requests.get(video_url)
+    request = r_get(video_url)
 
     return request.status_code == 200
 
@@ -1182,7 +1147,7 @@ def format_time(secs):
 
 def find_url(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
-    url = re.findall(regex, string)      
+    url = findall(regex, string)      
     return [x[0] for x in url]
 
 def str_json(string):
@@ -1256,7 +1221,7 @@ def add_entry():
 			song_history[server][user].append({})
 
 def check_time():
-	threading.Timer(60, check_time).start()
+	Timer(60, check_time).start()
 
 	now = datetime.datetime.now()
 	current_time = now.strftime("%H:%M")
@@ -1274,7 +1239,7 @@ async def save(ctx):
 		await ctx.send(admin_command_message)
 
 async def new_save():
-	print("Saving...")
+	time = datetime.datetime.now()
 
 	users_in_vc = get_users_in_vc()
 	for server in users_in_vc:
@@ -1307,7 +1272,7 @@ async def new_save():
 		json.dump(video_info, outfile)
 	await channel.send(file=discord.File("Data Files/video_info.json"))
 
-	print("Saved")
+	print("saved in " + str(round((datetime.datetime.now() - time).total_seconds() * 1000)) + "ms")
 
 async def async_timer(interval, func, arg1 = None, arg2 = None, arg3 = None):
 	while True:
@@ -1332,4 +1297,4 @@ fernet = Fernet(key)
 with open('Token/token.txt', 'rb') as enc_file:
     encrypted = enc_file.read()
 
-snoo.run(fernet.decrypt(encrypted).decode('UTF-8'))
+snoo.run(fernet.decrypt(encrypted).decode('UTF-8'), log_handler = None)
