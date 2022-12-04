@@ -13,4 +13,3 @@ plotly
 kaleido
 cryptography
 selenium
-webdriver-manager

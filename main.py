@@ -25,138 +25,62 @@ from difflib import SequenceMatcher
 from copy import deepcopy
 from random import shuffle
 from pytube import Playlist
+from validators import url
 import queue
 
 from System.system import *
 
 intents = discord.Intents.all()
-snoo = commands.Bot(command_prefix = prefix, intents=intents)
+snoo = commands.Bot(command_prefix = prefix, intents = intents)
 
 @snoo.event
 async def on_ready():
 	print(f'we have logged in as {snoo.user}')
-	await snoo.tree.sync(guild=discord.Object(id = 816745591459545120))
-	
-	await snoo.change_presence(activity=discord.Activity(type = discord.ActivityType.playing, name = "music for my friends!"))
-	channel = snoo.get_channel(865007153109663765)
+	await snoo.tree.sync()#guild = discord.Object(test_server))
+	await snoo.change_presence(activity = discord.Activity(type = discord.ActivityType.playing, name = "music for my friends!"))
 
 	await initialize_data()
 	verify_lang()
 	print("imported data")
 	str_json(missing_translations)
-	await channel.send(file=discord.File('Cache/string.json'))
-	asyncio.create_task(async_timer(60 * 6, new_save))
+	#await channel.send(file=discord.File('Cache/string.json'))
+	asyncio.create_task(async_timer(60 * 6, new_save)) #PLEASE FUTURE ME REMMEBER TO UNCOMMENT!!!!!!!!!
 
+	channel = snoo.get_channel(test_channel)
 	await channel.send(f"running version: {version} on {gethostname()}")
-	
+
 async def initialize_data():
 	if (not os.path.isdir('Data Files')):
 		os.makedirs("Data Files")
 	if (not os.path.isdir('Cache')): 
 		os.makedirs("Cache")
-		
+
 	global language
+	global video_info
+
 	f = open('System/language.json', encoding='utf8')
 	language = json.load(f)
 
-	channel = snoo.get_channel(977316868253708359)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/profile.json")
-	f = open('Data Files/profile.json')
-	str_profile = json.load(f)
-
-	channel = snoo.get_channel(913524223870398534)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/channel_messages.json")
-	f = open('Data Files/channel_messages.json')
-	str_messages = json.load(f)
-
-	channel = snoo.get_channel(922592622248341505)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/song_history.json")
-	f = open('Data Files/song_history.json')
-	str_history = json.load(f)
-
-	channel = snoo.get_channel(985597229022724136)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/server_config.json")
-	f = open('Data Files/server_config.json')
-	str_config = json.load(f)
-
-	global playlists
-	channel = snoo.get_channel(999117002323001354)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/playlists.json")
-	f = open('Data Files/playlists.json')
-	playlists = json.load(f)
-
-	global video_info
-	channel = snoo.get_channel(993332319454760960)
-	async for message in channel.history (limit = 1):
-		await message.attachments[0].save("Data Files/video_info.json")
-	f = open('Data Files/video_info.json')
-	video_info = json.load(f)
+	str_profile = await download_datafile(977316868253708359, "profile")
+	str_messages = await download_datafile(913524223870398534, "channel_messages")
+	str_history = await download_datafile(922592622248341505, "song_history")
+	str_config = await download_datafile(985597229022724136, "server_config")
+	str_playlists = await download_datafile(999117002323001354, "playlists")
+	video_info = await download_datafile(993332319454760960, "video_info")
 
 	#convert dictionarys to int:
-	for guild in str_profile:
-		for user in str_profile[guild]:
-			profile_data[int(guild)][int(user)] = str_profile[guild][user]
-
-	for guild in str_messages:
-		for channel in str_messages[guild]:
-			channel_messages[int(guild)][int(channel)] = str_messages[guild][channel]
-
-	for guild in str_history:
-		for user in str_history[guild]:
-			song_history[int(guild)][int(user)] = str_history[guild][user]
-
-	for guild in str_config:
-		server_config[int(guild)] = str_config[guild]
-
-	"""for guild in str_playlists:
-		for user in str_playlists[guild]:
-			playlists[int(guild)][int(user)] = str_playlists[guild][user]"""
-
-def verify_lang():
-	loop_lang_cat("settings_info")
-	loop_lang_cat("error")
-	loop_lang_cat("notifs")
-	loop_lang_cat("ui", "title")
-	loop_lang_cat("ui", "field")
-
-def loop_lang_cat(cat, cat2 = None):
-	if (cat2 == None):
-		for val in language["English"][cat]:
-			for lang in language:
-				if (lang == "English"):
-					continue
-				if (val not in language[lang][cat]):
-					if (lang not in missing_translations):
-						missing_translations[lang] = {}
-					if (cat not in missing_translations[lang]):
-						missing_translations[lang][cat] = {}
-					missing_translations[lang][cat][val] = language["English"][cat][val]
-					language[lang][cat][val] = language["English"][cat][val]
-	else:
-		for val in language["English"][cat][cat2]:
-			for lang in language:
-				if (lang == "English"):
-					continue
-				if (val not in language[lang][cat][cat2]):
-					if (lang not in missing_translations):
-						missing_translations[lang] = {}
-					if (cat not in missing_translations[lang]):
-						missing_translations[lang][cat] = {}
-					if (cat2 not in missing_translations[lang][cat]):
-						missing_translations[lang][cat][cat2] = {}
-					missing_translations[lang][cat][cat2][val] = language["English"][cat][cat2][val]
-					language[lang][cat][cat2][val] = language["English"][cat][cat2][val]
+	dict_str_to_int(str_profile, profile_data)
+	dict_str_to_int(str_messages, channel_messages)
+	dict_str_to_int(str_history, song_history)
+	dict_str_to_int(str_config, server_config, True)
+	dict_str_to_int(str_playlists, playlists)
 
 @snoo.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        return
-    raise error
+	if isinstance(error, commands.CommandNotFound):
+		print("command not recognized")
+		return
+	raise error
 
 # _________________________________________________________________ ON MESSAGE _________________________________________________________________
 
@@ -176,7 +100,7 @@ async def on_message(message):
 	verify_settings(message.guild.id)
 
 	if (server_config[message.guild.id]["votes"]):
-		if (message.attachments or len(find_url(message.content)) >= 1 or '*image*' in message.content.lower()):
+		if (message.attachments or len(find_url(message.content)) > 0 or '*image*' in message.content.lower()):
 			upvote = None
 			downvote = None
 
@@ -191,30 +115,22 @@ async def on_message(message):
 					break
 
 			if (upvote == None):
-				await message.add_reaction("<:Upvote:919356607563972628>")
+				await message.add_reaction(emojis["upvote"])
 			else:
 				await message.add_reaction(upvote)
 			if (server_config[message.guild.id]["downvote"]):
 				if (downvote == None):
-					await message.add_reaction("<:Downvote:919357445770473503>")
+					await message.add_reaction(emojis["downvote"])
 				else:
 					await message.add_reaction(downvote)
 
 	if (message.content.lower().startswith('%')):
 		if ('scale' in message.content.lower()):
-			await message.add_reaction("1️⃣")
-			await message.add_reaction("2️⃣")
-			await message.add_reaction("3️⃣")
-			await message.add_reaction("4️⃣")
-			await message.add_reaction("5️⃣")
-			await message.add_reaction("6️⃣")
-			await message.add_reaction("7️⃣")
-			await message.add_reaction("8️⃣")
-			await message.add_reaction("9️⃣")
-			await message.add_reaction("🔟")
+			for num in emojis["numbers"]:
+				await message.add_reaction(num)
 		else:	
-			await message.add_reaction("<:cross:905498493840400475>")
-			await message.add_reaction("<:check:905498494222098543>")
+			await message.add_reaction(emojis["cross"])
+			await message.add_reaction(emojis["check"])
 
 	#commands
 	await snoo.process_commands(message)
@@ -280,27 +196,31 @@ async def config(ctx, *, setting = None):
 			embed.add_field(name = config.upper(), value = language[lang_set]["settings_info"][config], inline = True)
 			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 			if (server_config[ctx.guild.id][config]):
-				embed.add_field(name = "<:on1:985591109998759986><:on2:985591107524104324>", value = "\u200b", inline = True)
+				embed.add_field(name = emojis["on"], value = "\u200b", inline = True)
 			else:
-				embed.add_field(name = "<:off1:985591110799884309><:off2:985591108929208320>", value = "\u200b", inline = True)
+				embed.add_field(name = emojis["off"], value = "\u200b", inline = True)
 		await ctx.send(embed=embed)
 
 @snoo.command()
 async def poll(ctx, name, *, opts):
-	emojis = ["<:A_:908477372397920316>", "<:B_:908477372637011968>", "<:C_:908477373090000916>", "<:D_:908477372607639572>", "<:E_:908477372561506324>", "<:F_:908477372511170620>", "<:G_:908477372829949952>"]
 	opts_list = opts.split(',')
-	
 
 	embed = discord.Embed(title = name, colour = snoo_color)
 	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['poll'].upper()}", icon_url = poll_icon)
 
 	for i in range(len(opts_list)):
-		embed.add_field(name = f"{language[lang_set]['ui']['field']['option']}  {emojis[i]}", value = opts_list[i], inline=False)
+		embed.add_field(name = f"{language[lang_set]['ui']['field']['option']}  {emojis['poll'][i]}", value = opts_list[i], inline=False)
+
+		if (i >= 6):
+			break
 
 	poll = await ctx.send(embed=embed)
 
 	for i in range(len(opts_list)):
-		await poll.add_reaction(emojis[i])
+		await poll.add_reaction(emojis["poll"][i])
+
+		if (i >= 6):
+			break
 
 @snoo.command()
 async def user(ctx, *, user: discord.User):
@@ -315,8 +235,8 @@ async def say(ctx, *, args):
 
 #display information
 @snoo.command()
-async def profile(ctx, *, user: discord.User = 123):
-	if (user == 123):
+async def profile(ctx, *, user: discord.User = 0):
+	if (user == 0):
 		user_id = ctx.message.author.id
 	else:
 		user_id = user.id
@@ -327,7 +247,7 @@ async def profile(ctx, *, user: discord.User = 123):
 
 	verify_data(ctx.guild.id, user_id)
 
-	embed = discord.Embed(colour=snoo_color)
+	embed = discord.Embed(colour = snoo_color)
 
 	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['profile'].format(username).upper()}", icon_url = profile_icon)
 
@@ -338,7 +258,7 @@ async def profile(ctx, *, user: discord.User = 123):
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 	embed.add_field(name = language[lang_set]['ui']['field']['vc_hours']['title'], value = language[lang_set]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
 	
-	await ctx.send(embed=embed)
+	await ctx.send(embed = embed)
 
 @snoo.command()
 async def graph(ctx, type, *, data: discord.User):
@@ -363,37 +283,25 @@ async def graph(ctx, type, *, data: discord.User):
 	#os.remove("graph.png")
 
 @snoo.command()
-async def extract(ctx, url = None):
-	if (url == None):
-		if (info[ctx.guild.id]["voice"].is_playing()):
-			url = info[ctx.guild.id]["queue"][0]
-		else:
-			await ctx.send(language[lang_set]["error"]["no_url"])
-
-	YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
-	with YoutubeDL(YDL_OPTIONS) as ydl:
-		try:
-			vid = ydl.extract_info(url, download=False)
-		except:
-			print("Failed to fetch video info")
-			await ctx.send(language[lang_set]["error"]["extract"])
-			return
-	str_json(vid)
-	await ctx.send(file=discord.File('Cache/string.json'))
-
-@snoo.command()
-async def playlist(ctx, *, arg1 = None):
-	if (arg1 in playlists):
-		embed = discord.Embed(title = playlists[arg1]["title"], desc = playlists[arg1]["desc"], color = snoo_color)
+async def playlist(ctx, *, playlist = None):
+	print(playlists[ctx.guild.id][ctx.message.author.id])
+	if (playlist in playlists[ctx.guild.id][ctx.message.author.id]):
+		embed = discord.Embed(title = playlists[ctx.guild.id][ctx.message.author.id][playlist]["title"], description = playlists[ctx.guild.id][ctx.message.author.id][playlist]["desc"], color = snoo_color)
 		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['playlist'].upper()}", icon_url=music_icon)
-		embed.set_thumbnail(url = playlists[arg1]["cover"])
-		for song in playlists[arg1]["songs"]:
+		embed.set_thumbnail(url = playlists[ctx.guild.id][ctx.message.author.id][playlist]["cover"])
+		for song in playlists[ctx.guild.id][ctx.message.author.id][playlist]["songs"]:
 			embed.add_field(name = video_info[song]["title"], value = video_info[song]["channel_name"], inline = True)
 			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 			embed.add_field(name = format_time(video_info[song]["secs_length"]), value = "\u200b", inline = True)
 		await ctx.send(embed = embed)
 
 # _________________________________________________________________ MUSIC _________________________________________________________________
+
+async def join_or_move_to_channel(guild, channel):
+	if info[guild]["voice"] and info[guild]["voice"].is_connected():
+		await info[guild]["voice"].move_to(channel)
+	else:
+		info[guild]["voice"] = await channel.connect()
 
 @snoo.command()
 async def find_playlist(ctx, playlist):
@@ -482,6 +390,7 @@ def search_and_find_info(search):
 		result = search
 	
 	if (result not in video_info):
+		print("new video: " + result)
 		if (not find_video_info(result)):
 			return None
 	
@@ -511,85 +420,102 @@ def thread_find_playlist(playlist):
 
 	q.join()
 
-@snoo.tree.context_menu(name = "Play", guild=discord.Object(id = 816745591459545120))
-async def first_command(interaction: discord.Interaction, message: discord.Message):
-	await play(message)
-	await interaction.response.defer()
+async def filter_url(reference, channel, search):
+	if (reference is None):
+		if (url(search) and "youtube" in search and "list=" in search):
+			return (search, None, find_videos_playlist(search))
+		elif (verify_yt_id(yt_id(search))):
+			return (search, yt_id(search), None)
+	else:
+		try:
+			message_reference = await channel.fetch_message(reference.message_id)
+		except:
+			message_reference = reference
+		if (len(find_url(message_reference.content)) > 0):
+			temp_url = find_url(message_reference.content)[0]
+			if ("youtube" in temp_url and "list=" in temp_url):
+				return (search, None, find_videos_playlist(temp_url))
+			elif (verify_yt_id(yt_id(temp_url))):
+				return (search, yt_id(temp_url), None)
+			else:
+				return (message_reference.content, None, None)
+		else:
+			if (len(message_reference.embeds) > 0): 
+				if (str(message_reference.embeds[0].url) != "Embed.Empty"):
+					temp_url = message_reference.embeds[0].url
+					if (verify_yt_id(yt_id(temp_url))):
+						return (search, yt_id(temp_url), None)
+					else:
+						await channel.send(language[lang_set]["error"]["not_youtube"])
+						return
+				else:		
+					await channel.send(language[lang_set]["error"]["no_content"])
+					return
+			elif (message_reference.content == ""):
+				await channel.send(language[lang_set]["error"]["no_content"])
+				return
+			else:
+				return (message_reference.content, None, None)
+
+	return (search, None, None)
+
+def search_to_playlist(search):
+	if (search[0] == "[" and search[-1] == "]"):
+		return search.strip('][').split(', ')
+	elif (search in playlists):
+		return playlists[search]["songs"]
+	return None
+
+@snoo.tree.context_menu(name = "play")#, guild = discord.Object(id = test_server))
+async def play_menu(interaction: discord.Interaction, message: discord.Message):
+	await interaction.response.defer(ephemeral = True)
+	await play_sys(interaction.guild, interaction.channel, message, interaction.user)
+	await interaction.followup.send("interaction successful")
 
 @snoo.command()
-async def play(ctx, *, search = None, autoplay = None):
+async def play(ctx, *, search = None):
+	await play_sys(ctx.guild, ctx.channel, ctx.message.reference, ctx.message.author, search)
+
+async def play_sys(guild = None, channel = None, reference = None, user = None, search = None, autoplay = None):
 	skip_search = False
 	playlist = None
-	message = None
+	searching_msg = None
 	id = None
+	searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
 
 	if (autoplay == None):
-		if (ctx.guild.id not in info):
-			info[ctx.guild.id] = {"channel": ctx.channel, "voice": get(snoo.voice_clients, guild = ctx.guild), "paused": False, "looping": False, "autoplay": True, "shuffle": False, "queue": [], "past queue": [], "processing": False}
+		if (guild.id not in info):
+			info[guild.id] = deepcopy(default_info)
+			info[guild.id]["channel"] = channel
+			info[guild.id]["voice"] = get(snoo.voice_clients, guild = guild)
 		
-		if (type(ctx.message.author.voice) == type(None)):
-			await ctx.send(language[lang_set]["error"]["no_vc"])
+		if (type(user.voice) == type(None)):
+			await channel.send(language[lang_set]["error"]["no_vc"])
 			return
 
-		searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
-
-		if (ctx.message.reference is None):
-			if (len(find_url(msg.content)) >= 1 and "youtube" in search and "list=" in search):
-				playlist = find_videos_playlist(search)
-			elif (verify_yt_id(yt_id(search))):
-				id = yt_id(search)
-		else:
-			msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-			if (len(find_url(msg.content)) >= 1):
-				temp_url = find_url(msg.content)[0]
-				if ("youtube" in temp_url and "list=" in temp_url):
-					playlist = find_videos_playlist(temp_url)
-				elif (verify_yt_id(yt_id(temp_url))):
-					id = yt_id(temp_url)
-				else:
-					search = msg.content
-			else:
-				if (len(msg.embeds) >= 1): 
-					if (str(msg.embeds[0].url) != "Embed.Empty"):
-						if (verify_yt_id(yt_id(msg.embeds[0].url))):
-							id = yt_id(msg.embeds[0].url)
-						else:
-							await ctx.send(language[lang_set]["error"]["not_youtube"])
-							return
-					else:		
-						await ctx.send(language[lang_set]["error"]["no_content"])
-						return
-				elif (msg.content == ""):
-					await ctx.send(language[lang_set]["error"]["no_content"])
-					return
-				else:
-					search = msg.content
+		filtered_info = await filter_url(reference, channel, search)
+		print(filtered_info)
+		search = filtered_info[0]
+		id = filtered_info[1]
+		playlist = filtered_info[2]
 
 		if (id == None):
 			if (playlist == None):
-				if (search[0] == "[" and search[-1] == "]"):
-					playlist = search.strip('][').split(', ')
-				elif (search in playlists):
-					playlist = playlists[search]["songs"]
-			
+				playlist = search_to_playlist(search)
+
 			if (playlist != None):
-				if (len(info[ctx.guild.id]["queue"]) < 1):
+				if (len(info[guild.id]["queue"]) < 1):
 					search = playlist[0]
 					playlist = playlist[1:]
 				else:
 					skip_search = True
 
 			if (not skip_search):
-				if (not verify_yt_id(search)):
-					message = await ctx.send(searching.format(search))
-					result = search_yt(search)
-					if (result != None):
-						id = result
-					else:
-						await message.edit(content = language[lang_set]["error"]["nothing_found"])
-						return
-				else:
-					id = search
+				searching_msg = await channel.send(searching.format(search))
+				id = search_and_find_info(search)
+				if (id == None):
+					await searching_msg.edit(content = language[lang_set]["error"]["nothing_found"])
+					return
 	else:
 		id = autoplay
 
@@ -599,64 +525,51 @@ async def play(ctx, *, search = None, autoplay = None):
 			print("new video")
 			found_info = find_video_info(id)
 
+		print(id)
 		if (not valid_url(video_info[id]["source"])):
 			print("url expired")
 			found_info = find_video_info(id, True)
 
 		if (not found_info):
-			if (message != None):
-				await message.edit(content = language[lang_set]["error"]["age_restricted"])
+			if (searching_msg != None):
+				await searching_msg.edit(content = language[lang_set]["error"]["age_restricted"])
 			else:
-				await ctx.send(language[lang_set]["error"]["age_restricted"])
-			return
+				await channel.send(language[lang_set]["error"]["age_restricted"])
+			return		
+
+		info[guild.id]["queue"].append(id)
 
 		if (autoplay == None):
-			channel = ctx.message.author.voice.channel
+			if (len(info[guild.id]["queue"]) <= 1):
+				await join_or_move_to_channel(guild.id, user.voice.channel)
+				await play_url(guild.id, id)
 
-			if info[ctx.guild.id]["voice"] and info[ctx.guild.id]["voice"].is_connected():
-				await info[ctx.guild.id]["voice"].move_to(channel)
+				embeds = nowplaying_embed(guild.id, info[guild.id]["queue"][0])
+				if (server_config[guild.id]["large nowplaying thumbnail"]):
+					info[guild.id]["thumbnail"] = await channel.send(embed = embeds[1])
+				info[guild.id]["nowplaying"] = await channel.send(embed = embeds[0], view = embeds[2])
+
+				if (searching_msg != None):
+					await searching_msg.delete()
+
+				info[guild.id]["nowplaying_edits"] = 0
+				info[guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild.id))
 			else:
-				info[ctx.guild.id]["voice"] = await channel.connect()
+				embed = small_queued_embed(id)
 
-		info[ctx.guild.id]["queue"].append(id)
-
-		if (autoplay == None):
-			if (len(info[ctx.guild.id]["queue"]) <= 1):
-				await play_url(ctx.guild.id, id)
-
-				embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
-				if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
-					info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
-				info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0], view = embeds[2])
-
-				if (message != None):
-					await message.delete()
-
-				info[ctx.guild.id]["nowplaying_edits"] = 0
-				info[ctx.guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, ctx.guild.id))
-			else:
-				#queued = True
-
-				embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color=snoo_color)
-
-				embed.set_thumbnail(url = video_info[id]["thumbnail"])
-				embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
-
-				#await ctx.send(embed=embed)
-
-				if (message != None):
-					await message.edit(content="", embed = embed)
+				if (searching_msg != None):
+					await searching_msg.edit(content="", embed = embed)
 				else:
 					print("there was no message to edit and snoo was unable to edit a conformation embed")
-					await ctx.send(embed = embed)
+					await channel.send(embed = embed)
 		else:
-			await play_url(ctx.guild.id, id)
+			await play_url(guild.id, id)
 
-		Thread(target = find_autoplay, args = (ctx.guild.id, id, )).start()
+		find_autoplay(guild.id, id, )
 
 	if (playlist != None and len(playlist) > 0):
 		Thread(target = thread_find_playlist, args = (playlist, )).start()
-		await queued_embed(ctx, playlist)
+		await queued_embed(channel, playlist)
 
 async def play_url(guild, id):
 	if (info[guild]["voice"].is_playing()):
@@ -681,14 +594,14 @@ def find_autoplay(guild, id):
 			print("autoplay: " + vid)
 			break
 
-async def queued_embed(ctx, playlist):
+async def queued_embed(channel, playlist):
 	edit_needed = False
 	i = 0
 	total_time = 0
 
 	embed = discord.Embed(color = snoo_color)
 	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
-	embed_msg = await ctx.send(embed = embed)
+	embed_msg = await channel.send(embed = embed)
 
 	while (i < len(playlist)):
 		if (playlist[i] in video_info):
@@ -725,6 +638,12 @@ async def queued_embed(ctx, playlist):
 		await embed_msg.edit(embed = embed)
 
 	find_autoplay(embed_msg.guild.id, playlist[-1])
+
+def small_queued_embed(id):
+	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color = snoo_color)
+	embed.set_thumbnail(url = video_info[id]["thumbnail"])
+	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	return embed
 
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
@@ -859,7 +778,7 @@ async def play_next(guild):
 	if (len(info[guild]["queue"]) > 0):
 		await play_url(guild, info[guild]["queue"][0])
 	elif (info[guild]["autoplay"]):
-		await play(info[guild]["channel"], autoplay = info[guild]["recomended_vid"])
+		await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = info[guild]["recomended_vid"])
 
 	await info[guild]["thumbnail"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[1])
 	
@@ -1090,15 +1009,62 @@ async def hi(ctx):
 	button.callback = button_callback
 	view.add_item(button)
 	await ctx.send("hi", view = view)
-	"""delay_time = datetime.datetime.now() - ctx.message.created_at
-	delay_ms = delay_time.total_seconds() * 1000
-	delay_ms = round(delay_ms, 2)
-	await ctx.send(str(delay_ms) + "ms")"""
 
 async def button_callback(interaction):
 	await interaction.response.send_message("hi " + str(interaction.user) + "!")
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+
+async def download_datafile(channel_id, name):
+	channel = snoo.get_channel(channel_id)
+	async for message in channel.history (limit = 1):
+		await message.attachments[0].save(f"Data Files/{name}.json")
+	f = open(f"Data Files/{name}.json")
+	return json.load(f)
+
+def dict_str_to_int(str_dict, _dict, single = False):
+	if (not single):
+		for key in str_dict:
+			for new_key in str_dict[key]:
+				_dict[int(key)][int(new_key)] = str_dict[key][new_key]
+	else:
+		for key in str_dict:
+			_dict[int(key)] = str_dict[key]
+
+def verify_lang():
+	loop_lang_cat("settings_info")
+	loop_lang_cat("error")
+	loop_lang_cat("notifs")
+	loop_lang_cat("ui", "title")
+	loop_lang_cat("ui", "field")
+
+def loop_lang_cat(cat, cat2 = None):
+	if (cat2 == None):
+		for val in language["English"][cat]:
+			for lang in language:
+				if (lang == "English"):
+					continue
+				if (val not in language[lang][cat]):
+					if (lang not in missing_translations):
+						missing_translations[lang] = {}
+					if (cat not in missing_translations[lang]):
+						missing_translations[lang][cat] = {}
+					missing_translations[lang][cat][val] = language["English"][cat][val]
+					language[lang][cat][val] = language["English"][cat][val]
+	else:
+		for val in language["English"][cat][cat2]:
+			for lang in language:
+				if (lang == "English"):
+					continue
+				if (val not in language[lang][cat][cat2]):
+					if (lang not in missing_translations):
+						missing_translations[lang] = {}
+					if (cat not in missing_translations[lang]):
+						missing_translations[lang][cat] = {}
+					if (cat2 not in missing_translations[lang][cat]):
+						missing_translations[lang][cat][cat2] = {}
+					missing_translations[lang][cat][cat2][val] = language["English"][cat][cat2][val]
+					language[lang][cat][cat2][val] = language["English"][cat][cat2][val]
 
 def valid_url(uri: str) -> bool:
     try:
@@ -1168,7 +1134,7 @@ async def history(ctx):
 						best_videos[video] = song_history[ctx.guild.id][ctx.message.author.id][day][video][watch_id]["retention"]
 		sorted_videos = dict(sorted(best_videos.items(), key = lambda item: item[1], reverse = True))
 		first_ten = list(sorted_videos)[:10]
-		shuffle(first_ten)
+		#shuffle(first_ten)
 		await ctx.send(first_ten)
 	else:
 		await ctx.send(admin_command_message)
@@ -1238,6 +1204,12 @@ async def save(ctx):
 	else:
 		await ctx.send(admin_command_message)
 
+async def upload_file(channel_id, name, file):
+	channel = snoo.get_channel(channel_id)
+	with open(f"Data Files/{name}.json", "w") as outfile:
+		json.dump(file, outfile)
+	await channel.send(file=discord.File(f"Data Files/{name}.json"))
+
 async def new_save():
 	time = datetime.datetime.now()
 
@@ -1247,30 +1219,11 @@ async def new_save():
 			verify_data(server, user)
 			profile_data[server][user]["vc_time"][-1] = round(profile_data[server][user]["vc_time"][-1] + 0.1, 1)
 
-	channel = snoo.get_channel(977316868253708359)
-	with open("Data Files/profile.json", "w") as outfile:
-		json.dump(profile_data, outfile)
-	await channel.send(file=discord.File("Data Files/profile.json"))
-
-	channel = snoo.get_channel(913524223870398534)
-	with open("Data Files/channel_messages.json", "w") as outfile:
-		json.dump(channel_messages, outfile)
-	await channel.send(file=discord.File("Data Files/channel_messages.json"))
-
-	channel = snoo.get_channel(985597229022724136)
-	with open("Data Files/server_config.json", "w") as outfile:
-		json.dump(server_config, outfile)
-	await channel.send(file=discord.File("Data Files/server_config.json"))
-
-	channel = snoo.get_channel(922592622248341505)
-	with open("Data Files/song_history.json", "w") as outfile:
-		json.dump(song_history, outfile)
-	await channel.send(file=discord.File("Data Files/song_history.json"))
-
-	channel = snoo.get_channel(993332319454760960)
-	with open("Data Files/video_info.json", "w") as outfile:
-		json.dump(video_info, outfile)
-	await channel.send(file=discord.File("Data Files/video_info.json"))
+	await upload_file(977316868253708359, "profile", profile_data)
+	await upload_file(913524223870398534, "channel_messages", channel_messages)
+	await upload_file(985597229022724136, "server_config", server_config)
+	await upload_file(922592622248341505, "song_history", song_history)
+	await upload_file(993332319454760960, "video_info", video_info)
 
 	print("saved in " + str(round((datetime.datetime.now() - time).total_seconds() * 1000)) + "ms")
 
@@ -1297,4 +1250,4 @@ fernet = Fernet(key)
 with open('Token/token.txt', 'rb') as enc_file:
     encrypted = enc_file.read()
 
-snoo.run(fernet.decrypt(encrypted).decode('UTF-8'), log_handler = None)
+snoo.run(fernet.decrypt(encrypted).decode('UTF-8'))
