@@ -6,10 +6,11 @@ thread6
 pandas
 urllib3
 regex
-youtube_dl
+yt_dlp
 requests-html
 bs4
 plotly
 kaleido
 cryptography
 selenium
+pytube

@@ -15,7 +15,7 @@ from urllib.parse import urlparse, urlencode, parse_qs
 from urllib.request import urlopen
 from contextlib import suppress
 from re import findall
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 from bs4 import BeautifulSoup as bs
 from socket import gethostname
 from requests import get as r_get
@@ -1206,8 +1206,9 @@ async def save(ctx):
 
 async def upload_file(channel_id, name, file):
 	channel = snoo.get_channel(channel_id)
+	json_object = json.dumps(file, indent=4)
 	with open(f"Data Files/{name}.json", "w") as outfile:
-		json.dump(file, outfile)
+		outfile.write(json_object)
 	await channel.send(file=discord.File(f"Data Files/{name}.json"))
 
 async def new_save():
