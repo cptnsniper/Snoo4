@@ -27,6 +27,7 @@ from random import shuffle
 from pytube import Playlist
 from validators import url
 import queue
+from logging import FileHandler
 
 from System.system import *
 
@@ -57,6 +58,7 @@ async def initialize_data():
 
 	global language
 	global video_info
+	global playlists
 
 	f = open('System/language.json', encoding='utf8')
 	language = json.load(f)
@@ -73,7 +75,7 @@ async def initialize_data():
 	dict_str_to_int(str_messages, channel_messages)
 	dict_str_to_int(str_history, song_history)
 	dict_str_to_int(str_config, server_config, True)
-	dict_str_to_int(str_playlists, playlists)
+	dict_str_to_int(str_playlists, playlists, True)
 
 @snoo.event
 async def on_command_error(ctx, error):
@@ -284,12 +286,12 @@ async def graph(ctx, type, *, data: discord.User):
 
 @snoo.command()
 async def playlist(ctx, *, playlist = None):
-	print(playlists[ctx.guild.id][ctx.message.author.id])
-	if (playlist in playlists[ctx.guild.id][ctx.message.author.id]):
-		embed = discord.Embed(title = playlists[ctx.guild.id][ctx.message.author.id][playlist]["title"], description = playlists[ctx.guild.id][ctx.message.author.id][playlist]["desc"], color = snoo_color)
+	print(playlists[ctx.guild.id])
+	if (playlist in playlists[ctx.guild.id]):
+		embed = discord.Embed(title = playlists[ctx.guild.id][playlist]["title"], description = playlists[ctx.guild.id][playlist]["desc"], color = snoo_color)
 		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['playlist'].upper()}", icon_url=music_icon)
-		embed.set_thumbnail(url = playlists[ctx.guild.id][ctx.message.author.id][playlist]["cover"])
-		for song in playlists[ctx.guild.id][ctx.message.author.id][playlist]["songs"]:
+		embed.set_thumbnail(url = playlists[ctx.guild.id][playlist]["cover"])
+		for song in playlists[ctx.guild.id][playlist]["songs"]:
 			embed.add_field(name = video_info[song]["title"], value = video_info[song]["channel_name"], inline = True)
 			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 			embed.add_field(name = format_time(video_info[song]["secs_length"]), value = "\u200b", inline = True)
@@ -484,6 +486,9 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 	searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
 
 	if (autoplay == None):
+		if (guild.id not in playlists or "liked" not in playlists[guild.id]):
+			playlists[guild.id]["liked"] = []
+
 		if (guild.id not in info):
 			info[guild.id] = deepcopy(default_info)
 			info[guild.id]["channel"] = channel
@@ -658,37 +663,28 @@ def nowplaying_embed(guild, id):
 	if (server_config[guild]["large nowplaying thumbnail"]):"""
 	playbar_length = 18
 
-	bar1 = "<:bar1:994058965279322144>"
-	bar2 = ["<:bar31:994069492026048713>", "<:bar21:994063956178124882>", "<:bar2:994058964918616074>", "<:bar22:994063957117632572>", "<:bar12:994069492953010196>"]
-	bar3 = "<:bar3:994058963509334018>"
-
-	bar1r = "<:bar1R:995467490052280320>"
-	bar2rR = ["<:bar31:994069492026048713>", "<:bar21r:995476810194223135>", "<:bar2r:995476813495152690>", "<:bar22r:995476811637067836>", "<:bar12r:995476812173942816>"]
-	bar2rL = ["<:bar31rr:995479103954239610>", "<:bar21rr:995479102066798612>", "<:bar2rr:995479104453361675>", "<:bar22rr:995479102976962695>", "<:bar12:994069492953010196>"]
-	bar3r = "<:bar3R:995467514144378992>"
-
 	segments_prsnt = watch_prsnt * (playbar_length / 100)
 	fill_error = 0.5
 	empty_error = 0.5
 
 	if (segments_prsnt > 1):
-		play_bar += bar1r
+		play_bar += emojis["bar1r"]
 		fill_error = 1.5
 	if (playbar_length - segments_prsnt > 1):
 		empty_error = 1.5
-	play_bar += bar1 * round(segments_prsnt - fill_error)
+	play_bar += emojis["bar1"] * round(segments_prsnt - fill_error)
 	for i in range(5):
 		if (segments_prsnt % 1 < (i + 1) * 0.2):
 			if (segments_prsnt > 1 and playbar_length - segments_prsnt > 1):
-				play_bar += bar2[i]
+				play_bar += emojis["bar2"][i]
 			elif (segments_prsnt < 1):
-				play_bar += bar2rR[i]
+				play_bar += emojis["bar2rR"][i]
 			elif (playbar_length - segments_prsnt < 1):
-				play_bar += bar2rL[i]
+				play_bar += emojis["bar2rL"][i]
 			break
-	play_bar += bar3 * (playbar_length - round(segments_prsnt + empty_error))
+	play_bar += emojis["bar3"] * (playbar_length - round(segments_prsnt + empty_error))
 	if (playbar_length - segments_prsnt > 1):
-		play_bar += bar3r
+		play_bar += emojis["bar3r"]
 
 	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
 	
@@ -707,7 +703,51 @@ def nowplaying_embed(guild, id):
 		publish_date = str(video_info[id]["publish_date"])
 		embed.add_field(name = language[lang_set]['ui']['field']['upload_date'], value = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8])).strftime("%b %d %Y"), inline=True)
 	
+	if (info[guild]["show_queue"]):
+		songs = ""
+		durations = ""
+		early_break = False
+		total_time = 0
+		for video in info[guild]["queue"]:
+			total_time += video_info[video]["secs_length"]
+		total_time += video_info[info[guild]["recomended_vid"]]["secs_length"]
+
+		for i in range(len(info[guild]["queue"])):
+			if (i == 0):
+				continue
+
+			chr_per_row = 40
+			if (len(songs) < 1024 - chr_per_row):
+				songs += f"**{i}** " + video_info[info[guild]["queue"][i]]["title"][0 : chr_per_row]
+				if (len(video_info[info[guild]["queue"][i]]["title"]) > chr_per_row):
+					songs += "...\n"
+				else:
+					songs += "\n"
+			else: 
+				early_break = True
+				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[guild]["queue"]) - i, format_time(total_time)))
+				break
+
+			durations += format_time(video_info[info[guild]["queue"][i]]["secs_length"]) + "\n"
+
+		if (songs != ""):
+			embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
+			embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
+
+		if (info[guild]["autoplay"]):
+			embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
+
+		if (not early_break):
+			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+
 	view = View()
+
+	emoji = "🤍"
+	if (info[guild]["queue"][0] in playlists[guild]["liked"]):
+		emoji = "❤️"
+	button = Button(emoji = emoji)
+	button.callback = like_button
+	view.add_item(button)
 
 	button = Button(emoji = "<:back:1035618514800754768>")
 	button.callback = back_button
@@ -722,6 +762,17 @@ def nowplaying_embed(guild, id):
 
 	button = Button(emoji = "<:skip:1035618493376254044>")
 	button.callback = skip_button
+	view.add_item(button)
+
+	button = Button(emoji = "🛑")
+	button.callback = stop_button
+	view.add_item(button)
+
+	emoji = "🔽"
+	if (info[guild]["show_queue"]):
+		emoji = "🔼"
+	button = Button(emoji = emoji)
+	button.callback = show_queue
 	view.add_item(button)
 
 	return [embed, thumbnail_embed, view]
@@ -746,7 +797,8 @@ async def update_nowplaying(guild):
 		if (len(info[guild]["queue"]) > 0 and info[guild]["nowplaying_edits"] >= 0):
 
 			if (info[guild]["voice"].is_playing()):
-				await info[guild]["nowplaying"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[0])
+				embeds = nowplaying_embed(guild, info[guild]["queue"][0])
+				await info[guild]["nowplaying"].edit(embed = embeds[0], view = embeds[2])
 
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
@@ -793,19 +845,6 @@ async def play_next(guild):
 			song_history[guild][user][-1][current_url] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
 		else:
 			song_history[guild][user][-1][current_url].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
-
-@snoo.command()
-async def stop(ctx):
-	if (ctx.guild.id in info and len(info[ctx.guild.id]["queue"]) >= 1):
-		#info[ctx.guild.id]["queue"].clear()
-		info[ctx.guild.id]["voice"].stop()
-		info[ctx.guild.id]["task"].cancel()
-		await info[ctx.guild.id]["voice"].disconnect()
-		info.pop(ctx.guild.id)
-
-		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
-		await ctx.send(embed = embed)
 
 @snoo.command()
 async def queue(ctx):
@@ -859,6 +898,40 @@ async def queue(ctx):
 		
 		await ctx.send(embed=embed)
 
+async def show_queue(interaction):
+	if (info[interaction.guild.id]["show_queue"]):
+		info[interaction.guild.id]["show_queue"] = False
+	else:
+		info[interaction.guild.id]["show_queue"] = True
+
+	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+
+@snoo.command()
+async def stop(ctx):
+	if (ctx.guild.id in info and len(info[ctx.guild.id]["queue"]) >= 1):
+		#info[ctx.guild.id]["queue"].clear()
+		info[ctx.guild.id]["voice"].stop()
+		info[ctx.guild.id]["task"].cancel()
+		await info[ctx.guild.id]["voice"].disconnect()
+		info.pop(ctx.guild.id)
+
+		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		await ctx.send(embed = embed)
+
+async def stop_button(interaction):
+	if (interaction.guild.id in info):
+		#info[ctx.guild.id]["queue"].clear()
+		info[interaction.guild.id]["voice"].stop()
+		info[interaction.guild.id]["task"].cancel()
+		await info[interaction.guild.id]["voice"].disconnect()
+		info.pop(interaction.guild.id)
+
+		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
+		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		await interaction.response.send_message(embed = embed)
+
 @snoo.command()
 async def pause(ctx):
 	if (not info[ctx.guild.id]["paused"]):
@@ -877,16 +950,13 @@ async def pause_button(interaction):
 		info[interaction.guild.id]["voice"].pause()
 		info[interaction.guild.id]["paused"] = True
 		info[interaction.guild.id]["pause_time"] = datetime.datetime.now()
-
-		embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
-		await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
 	else:
 		info[interaction.guild.id]["voice"].resume()
 		info[interaction.guild.id]["paused"] = False
 		info[interaction.guild.id]["start_time"] += datetime.datetime.now() - info[interaction.guild.id]["pause_time"]
 
-		embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
-		await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
 
 @snoo.command()
 async def skip(ctx):
@@ -945,6 +1015,15 @@ async def back_button(interaction):
 		#await interaction.response.send_message(language[lang_set]["notifs"]["back"].format(member.nick))
 	else:
 		await interaction.response.send_message(language[lang_set]["error"]["can_not_back"])
+
+async def like_button(interaction):
+	if (info[interaction.guild.id]["queue"][0] in playlists[interaction.guild.id]["liked"]):
+		playlists[interaction.guild.id]["liked"].remove(info[interaction.guild.id]["queue"][0])
+	else:
+		playlists[interaction.guild.id]["liked"].append(info[interaction.guild.id]["queue"][0])
+
+	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
+	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
 
 async def check_if_song_ended(guild):
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
@@ -1225,6 +1304,7 @@ async def new_save():
 	await upload_file(985597229022724136, "server_config", server_config)
 	await upload_file(922592622248341505, "song_history", song_history)
 	await upload_file(993332319454760960, "video_info", video_info)
+	await upload_file(999117002323001354, "playlists", playlists)
 
 	print("saved in " + str(round((datetime.datetime.now() - time).total_seconds() * 1000)) + "ms")
 
@@ -1251,4 +1331,5 @@ fernet = Fernet(key)
 with open('Token/token.txt', 'rb') as enc_file:
     encrypted = enc_file.read()
 
-snoo.run(fernet.decrypt(encrypted).decode('UTF-8'))
+handler = FileHandler(filename='Cache/discord.log', encoding='utf-8', mode='w')
+snoo.run(fernet.decrypt(encrypted).decode('UTF-8'), log_handler = handler)
