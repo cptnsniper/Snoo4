@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-prefix = ['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo ', 'snute ', 'Snute ']
+prefix = ['!s ', 'hey snoo, ', 'hey snoo ', 'snoo, ', 'snoo ', 'Hey snoo, ', 'Hey snoo ', 'Snoo, ', 'Snoo ', 'Hey Snoo, ', 'Hey Snoo ', 'hey snoo, ', 'hey snoo ', 'snute ', 'Snute ', "nsoo "]
 
 profile_data = defaultdict(dict)
 channel_messages = defaultdict(dict)
@@ -35,8 +35,8 @@ default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "l
 settings_info = {
 	"votes": {"dev": False},
 	"downvote": {"dev": False},
-	"slim nowplaying": {"dev": False},
-	"large nowplaying thumbnail": {"dev": False}
+	# "slim nowplaying": {"dev": False},
+	# "large nowplaying thumbnail": {"dev": False}
 }
 
 emojis = {

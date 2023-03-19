@@ -1,1 +1,229 @@
-{"English": {"settings_info": {"votes": "choose whether or not Snoo puts votes on posts", "downvote": "choose whether or not Snoo adds downvotes to posts", "slim nowplaying": "shows / hides views and upload date on the nowplaying embed", "large nowplaying thumbnail": "sets the nowplaying thumbnail to the larger, two-message style"}, "error": {"setting_not_found": "setting not found!", "age_restricted": "sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!", "nothing_found": "I wasn't able to find anything. Try something else?", "no_vc": "make sure you're in a voice channel first!", "not_youtube": "that's not a YouTube link, I'm unable to play it!", "no_content": "sorry but I'm unable to understand what the content of that message is.", "can_not_skip": "this is the last song in queue, I have nothing to skip to!", "can_not_back": "this is the first song in queue, I have nothing to go back to!", "no_url": "you did not provide a url and I'm not playing anything so I don't know what to extract!", "extract": "I was unable to extract that url, are you sure it's a proper youtube url?", "no_queue": "nothing in queue!"}, "notifs": {"loop_start": "I'll now loop the current song!", "loop_stop": "I will no longer loop!", "autoplay_start": "I'll do my best to choose a relevant video to play next!", "autoplay_stop": "I'll no longer automaticaly play videos!", "searching": "searching for `{}`", "skip": "{} has skipped the current song!", "back": "{} has rewinded to the previous track!"}, "ui": {"title": {"settings": "settings", "poll": "poll", "profile": "{}'s profile", "nowplaying": "now playing", "stopped": "stopped", "queue": "queue", "queue_end": "queue ended", "queued": "queued", "playlist": "playlist"}, "field": {"option": "option", "karma": {"title": "karma", "desc": "earned **{}** upvotes"}, "friendship": {"title": "friendship", "desc": "given out **{}** karma to others"}, "messages": {"title": "messages", "desc": "sent **{}** messages"}, "vc_hours": {"title": "VC hours", "desc": "spent **{}** hours in vc"}, "views": "views", "upload_date": "upload date", "stopped": "have a nice day!", "queue_end": "play something new!", "queue_footer": {"full": "and {} others, total queue time: {}", "short": "total queue time: {}"}, "next_up": "next up", "duration": "duration", "autoplay": "autoplay"}}}, "Russian": {"settings_info": {"votes": "выбирайте есть ли Сну добавляет голоса на посты", "downvote": "выбирайте есть ли Сну добавляет довнвоты на посты", "slim nowplaying": "показывает / скрывает количество просмотров и дату на эмбед ноуплеинг", "large nowplaying thumbnail": "устанавливает эмбед ноуплеинг в более крупный стиль с двумя сообщениями"}, "error": {"setting_not_found": "я не смог найти такой настройки!", "age_restricted": "извините но мне нельзя играть 18+ контент потому что мне толка один годик!", "nothing_found": "я ничё не смог найти! попробуйте что нибудь другое?", "no_vc": "убедитесь что вы в голосовом канале!", "not_youtube": "это не ссылка на ютуб, я не способен её играть!", "no_content": "извините но я не смог понять в чём смысл этого сообщения.", "can_not_skip": "это последняя песня в очереди, у меня ничего на что перейти!"}, "notifs": {"loop_start": "я теперь буду циклит текущую песню!", "loop_stop": "я больше не буду циклит текущую песню!", "autoplay_start": "я теперь буду пробовать сам выбирать подходящие видео!", "autoplay_stop": "я больше не буду сам выбирать видео!", "searching": "поискиваю `{}`"}, "ui": {"title": {"settings": "настройки", "poll": "голосование", "profile": "{} профиль", "nowplaying": "щас играет", "stopped": "перестал", "queue": "список песен", "queue_end": "список зокончилса", "queued": "добавил в список"}, "field": {"option": "опция", "karma": {"title": "карма", "desc": "заработал **{}** апвота"}, "friendship": {"title": "дружелюбие", "desc": "росдал **{}** кармы другим"}, "messages": {"title": "сообщения", "desc": "преслал **{}** сообщения"}, "vc_hours": {"title": "часов в голосовых каналах", "desc": "провёл **{}** часов в голосовых каналах"}, "views": "просмотров", "upload_date": "дата загрузки", "stopped": "хорошего дня!", "queue_end": "сыграйте что-нибудь опять!", "queue_footer": {"full": "и {} других, общее время списка: {}", "short": "общее время списка: {}"}}}}, "Spanish": {"settings_info": {"votes": "escoje si si o si no pone snoo votaciones", "downvote": "escoje si pone snoo downvote en las publicaciones", "slim nowplaying": "muestra / esconde vistas y fecha de subimiento en el video", "large nowplaying thumbnail": "pone la foto de video en el estilo  dos-mensaje"}, "error": {"setting_not_found": "No pudimos encontrar la configuracion!", "age_restricted": "perdone pero no puedo poner contenido 18+ porque aun no tengo 18!", "nothing_found": "No pude encontrar lo que busco. Trata con algo mas", "no_vc": "asegurate que estes en un chat de voz!", "not_youtube": "Perdon pero el link no es de youtube! No lo puedo mostrar. ", "no_content": "Perdon, no entendi.", "can_not_skip": "esta es la ultima cancion en linea entonces no puedo saltarla!"}, "notifs": {"loop_start": "tocare la cancion infinitamente!", "loop_stop": "ya no tocare la cancion infinitamente!", "autoplay_start": "tratare de poner  videos interesantes despues de que acabe este!", "autoplay_stop": "ya no pondre videos automaticamente!", "searching": "buscando a `{}`"}, "ui": {"title": {"settings": "configuraciones", "poll": "eleccion", "profile": "el perfil de {}", "nowplaying": "tocando", "stopped": "terminado", "queue": "cola", "queue_end": "cola terminada", "queued": "añadido a la cola"}, "field": {"option": "opcion", "karma": {"title": "karma", "desc": "ganado {} upvotes"}, "friendship": {"title": "amistad", "desc": "dado {} karma a los de mas"}, "messages": {"title": "mensajes", "desc": "enviado {} mensajes"}, "vc_hours": {"title": "horas en chat de voz", "desc": "tardado {} horas en chat de voz"}, "views": "vistas", "upload_date": "fecha de subimiento", "stopped": "que tenga buen dia!", "queue_end": "pon algo nuevo!", "queue_footer": {"full": "y {} de los de mas, tiempo de cola en total: {}", "short": "tiempo de cola en total: {}"}}}}}
+{
+    "English": {
+        "settings_info": {
+            "votes": "choose whether or not Snoo puts votes on posts",
+            "downvote": "choose whether or not Snoo adds downvotes to posts",
+            "slim nowplaying": "shows / hides views and upload date on the nowplaying embed",
+            "large nowplaying thumbnail": "sets the nowplaying thumbnail to the larger, two-message style"
+        },
+        "error": {
+            "setting_not_found": "setting not found!",
+            "age_restricted": "sorry, but I'm not allowed to play 18+ content since I'm only 6 months old!",
+            "nothing_found": "I wasn't able to find anything. Try something else?",
+            "no_vc": "make sure you're in a voice channel first!",
+            "not_youtube": "that's not a YouTube link, I'm unable to play it!",
+            "no_content": "sorry but I'm unable to understand what the content of that message is.",
+            "can_not_skip": "this is the last song in queue, I have nothing to skip to!",
+            "can_not_back": "this is the first song in queue, I have nothing to go back to!",
+            "no_url": "you did not provide a url and I'm not playing anything so I don't know what to extract!",
+            "extract": "I was unable to extract that url, are you sure it's a proper youtube url?",
+            "no_queue": "nothing in queue!"
+        },
+        "notifs": {
+            "loop_start": "I'll now loop the current song!",
+            "loop_stop": "I will no longer loop!",
+            "autoplay_start": "I'll do my best to choose a relevant video to play next!",
+            "autoplay_stop": "I'll no longer automaticaly play videos!",
+            "searching": "searching for `{}`",
+            "skip": "{} has skipped the current song!",
+            "back": "{} has rewinded to the previous track!"
+        },
+        "ui": {
+            "title": {
+                "settings": "settings",
+                "poll": "poll",
+                "profile": "{}'s profile",
+                "nowplaying": "now playing",
+                "stopped": "stopped",
+                "queue": "queue",
+                "queue_end": "queue ended",
+                "queued": "queued",
+                "playlist": "playlist"
+            },
+            "field": {
+                "option": "option",
+                "karma": {
+                    "title": "karma",
+                    "desc": "earned **{}** upvotes"
+                },
+                "friendship": {
+                    "title": "friendship",
+                    "desc": "given out **{}** karma to others"
+                },
+                "messages": {
+                    "title": "messages",
+                    "desc": "sent **{}** messages"
+                },
+                "vc_hours": {
+                    "title": "VC hours",
+                    "desc": "spent **{}** hours in vc"
+                },
+                "views": "views",
+                "upload_date": "upload date",
+                "stopped": "have a nice day!",
+                "queue_end": "play something new!",
+                "queue_footer": {
+                    "full": "and {} others, total queue time: {}",
+                    "short": "total queue time: {}"
+                },
+                "next_up": "next up",
+                "duration": "duration",
+                "autoplay": "autoplay",
+                "time_delta": {
+                    "year": {
+                        "singular": "1 year ago",
+                        "plural": "{} years ago"
+                    },
+                    "month": {
+                        "singular": "1 month ago",
+                        "plural": "{} months ago"
+                    },
+                    "day": {
+                        "singular": "1 day ago",
+                        "plural": "{} days ago"
+                    },
+                    "hour": {
+                        "singular": "1 hour ago",
+                        "plural": "{} hours ago"
+                    },
+                    "minute": {
+                        "singular": "1 minute ago",
+                        "plural": "{} minute ago",
+                        "less_then": "less then a minute ago"
+                    }
+                },
+                "number_multiplier": {
+                    "thousand": "K",
+                    "million": "M",
+                    "billion": "B"
+                }
+            }
+        }
+    },
+    "Russian": {
+        "settings_info": {
+            "votes": "выбирайте есть ли Сну добавляет голоса на посты",
+            "downvote": "выбирайте есть ли Сну добавляет довнвоты на посты",
+            "slim nowplaying": "показывает / скрывает количество просмотров и дату на эмбед ноуплеинг",
+            "large nowplaying thumbnail": "устанавливает эмбед ноуплеинг в более крупный стиль с двумя сообщениями"
+        },
+        "error": {
+            "setting_not_found": "я не смог найти такой настройки!",
+            "age_restricted": "извините но мне нельзя играть 18+ контент потому что мне толка один годик!",
+            "nothing_found": "я ничё не смог найти! попробуйте что нибудь другое?",
+            "no_vc": "убедитесь что вы в голосовом канале!",
+            "not_youtube": "это не ссылка на ютуб, я не способен её играть!",
+            "no_content": "извините но я не смог понять в чём смысл этого сообщения.",
+            "can_not_skip": "это последняя песня в очереди, у меня ничего на что перейти!"
+        },
+        "notifs": {
+            "loop_start": "я теперь буду циклит текущую песню!",
+            "loop_stop": "я больше не буду циклит текущую песню!",
+            "autoplay_start": "я теперь буду пробовать сам выбирать подходящие видео!",
+            "autoplay_stop": "я больше не буду сам выбирать видео!",
+            "searching": "поискиваю `{}`"
+        },
+        "ui": {
+            "title": {
+                "settings": "настройки",
+                "poll": "голосование",
+                "profile": "{} профиль",
+                "nowplaying": "щас играет",
+                "stopped": "перестал",
+                "queue": "список песен",
+                "queue_end": "список зокончилса",
+                "queued": "добавил в список"
+            },
+            "field": {
+                "option": "опция",
+                "karma": {
+                    "title": "карма",
+                    "desc": "заработал **{}** апвота"
+                },
+                "friendship": {
+                    "title": "дружелюбие",
+                    "desc": "росдал **{}** кармы другим"
+                },
+                "messages": {
+                    "title": "сообщения",
+                    "desc": "преслал **{}** сообщения"
+                },
+                "vc_hours": {
+                    "title": "часов в голосовых каналах",
+                    "desc": "провёл **{}** часов в голосовых каналах"
+                },
+                "views": "просмотров",
+                "upload_date": "дата загрузки",
+                "stopped": "хорошего дня!",
+                "queue_end": "сыграйте что-нибудь опять!",
+                "queue_footer": {
+                    "full": "и {} других, общее время списка: {}",
+                    "short": "общее время списка: {}"
+                }
+            }
+        }
+    },
+    "Spanish": {
+        "settings_info": {
+            "votes": "escoje si si o si no pone snoo votaciones",
+            "downvote": "escoje si pone snoo downvote en las publicaciones",
+            "slim nowplaying": "muestra / esconde vistas y fecha de subimiento en el video",
+            "large nowplaying thumbnail": "pone la foto de video en el estilo  dos-mensaje"
+        },
+        "error": {
+            "setting_not_found": "No pudimos encontrar la configuracion!",
+            "age_restricted": "perdone pero no puedo poner contenido 18+ porque aun no tengo 18!",
+            "nothing_found": "No pude encontrar lo que busco. Trata con algo mas",
+            "no_vc": "asegurate que estes en un chat de voz!",
+            "not_youtube": "Perdon pero el link no es de youtube! No lo puedo mostrar. ",
+            "no_content": "Perdon, no entendi.",
+            "can_not_skip": "esta es la ultima cancion en linea entonces no puedo saltarla!"
+        },
+        "notifs": {
+            "loop_start": "tocare la cancion infinitamente!",
+            "loop_stop": "ya no tocare la cancion infinitamente!",
+            "autoplay_start": "tratare de poner  videos interesantes despues de que acabe este!",
+            "autoplay_stop": "ya no pondre videos automaticamente!",
+            "searching": "buscando a `{}`"
+        },
+        "ui": {
+            "title": {
+                "settings": "configuraciones",
+                "poll": "eleccion",
+                "profile": "el perfil de {}",
+                "nowplaying": "tocando",
+                "stopped": "terminado",
+                "queue": "cola",
+                "queue_end": "cola terminada",
+                "queued": "añadido a la cola"
+            },
+            "field": {
+                "option": "opcion",
+                "karma": {
+                    "title": "karma",
+                    "desc": "ganado {} upvotes"
+                },
+                "friendship": {
+                    "title": "amistad",
+                    "desc": "dado {} karma a los de mas"
+                },
+                "messages": {
+                    "title": "mensajes",
+                    "desc": "enviado {} mensajes"
+                },
+                "vc_hours": {
+                    "title": "horas en chat de voz",
+                    "desc": "tardado {} horas en chat de voz"
+                },
+                "views": "vistas",
+                "upload_date": "fecha de subimiento",
+                "stopped": "que tenga buen dia!",
+                "queue_end": "pon algo nuevo!",
+                "queue_footer": {
+                    "full": "y {} de los de mas, tiempo de cola en total: {}",
+                    "short": "tiempo de cola en total: {}"
+                }
+            }
+        }
+    }
+}

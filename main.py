@@ -8,11 +8,11 @@ import json
 import datetime
 from threading import Thread, Timer
 import asyncio
-from math import fsum
+from math import fsum, floor
 from pandas import DataFrame
 from cryptography.fernet import Fernet
 from urllib.parse import urlparse, urlencode, parse_qs
-from urllib.request import urlopen
+from urllib.request import urlopen, urlretrieve
 from contextlib import suppress
 from re import findall
 from yt_dlp import YoutubeDL
@@ -28,11 +28,17 @@ from pytube import Playlist
 from validators import url
 import queue
 from logging import FileHandler
+from PIL import Image
 
 from System.system import *
 
 intents = discord.Intents.all()
 snoo = commands.Bot(command_prefix = prefix, intents = intents)
+
+if (not os.path.isdir('Data Files')):
+	os.makedirs("Data Files")
+if (not os.path.isdir('Cache')): 
+	os.makedirs("Cache")
 
 @snoo.event
 async def on_ready():
@@ -51,11 +57,6 @@ async def on_ready():
 	await channel.send(f"running version: {version} on {gethostname()}")
 
 async def initialize_data():
-	if (not os.path.isdir('Data Files')):
-		os.makedirs("Data Files")
-	if (not os.path.isdir('Cache')): 
-		os.makedirs("Cache")
-
 	global language
 	global video_info
 	global playlists
@@ -347,7 +348,13 @@ def find_video_info(id, only_source = False, only_rec = False):
 		video_info[id]["publish_date"] = vid["upload_date"]
 		video_info[id]["channel_link"] = vid["channel_url"]
 		video_info[id]["channel_name"] = vid["uploader"]
-		video_info[id]["thumbnail"] = vid["thumbnails"][-1]["url"]
+		attempt_i = -1
+		while (True):
+			video_info[id]["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
+			if (valid_url(video_info[id]["thumbnail"])):
+				break
+			attempt_i -= 1
+		str_json(vid["thumbnails"])
 
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
@@ -550,9 +557,10 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 				await play_url(guild.id, id)
 
 				embeds = nowplaying_embed(guild.id, info[guild.id]["queue"][0])
-				if (server_config[guild.id]["large nowplaying thumbnail"]):
-					info[guild.id]["thumbnail"] = await channel.send(embed = embeds[1])
-				info[guild.id]["nowplaying"] = await channel.send(embed = embeds[0], view = embeds[2])
+				# if (server_config[guild.id]["large nowplaying thumbnail"]):
+				info[guild.id]["thumbnail"] = await channel.send(embed = embeds[1])
+				info[guild.id]["nowplaying"] = await channel.send(embed = embeds[0])#, view = embeds[2])
+				info[guild.id]["button_holder"] = await channel.send(embed = embeds[3], view = embeds[2])
 
 				if (searching_msg != None):
 					await searching_msg.delete()
@@ -657,7 +665,7 @@ def nowplaying_embed(guild, id):
 	playing_for = format_time(time_since_start.seconds)
 	watch_prsnt = time_since_start.seconds * (100 / video_info[id]["secs_length"])
 
-	play_bar = f'{playing_for}   '
+	playbar = f'{playing_for}   '
 
 	"""playbar_length = 14
 	if (server_config[guild]["large nowplaying thumbnail"]):"""
@@ -668,41 +676,98 @@ def nowplaying_embed(guild, id):
 	empty_error = 0.5
 
 	if (segments_prsnt > 1):
-		play_bar += emojis["bar1r"]
+		playbar += emojis["bar1r"]
 		fill_error = 1.5
 	if (playbar_length - segments_prsnt > 1):
 		empty_error = 1.5
-	play_bar += emojis["bar1"] * round(segments_prsnt - fill_error)
+	playbar += emojis["bar1"] * round(segments_prsnt - fill_error)
 	for i in range(5):
 		if (segments_prsnt % 1 < (i + 1) * 0.2):
 			if (segments_prsnt > 1 and playbar_length - segments_prsnt > 1):
-				play_bar += emojis["bar2"][i]
+				playbar += emojis["bar2"][i]
 			elif (segments_prsnt < 1):
-				play_bar += emojis["bar2rR"][i]
+				playbar += emojis["bar2rR"][i]
 			elif (playbar_length - segments_prsnt < 1):
-				play_bar += emojis["bar2rL"][i]
+				playbar += emojis["bar2rL"][i]
 			break
-	play_bar += emojis["bar3"] * (playbar_length - round(segments_prsnt + empty_error))
+	playbar += emojis["bar3"] * (playbar_length - round(segments_prsnt + empty_error))
 	if (playbar_length - segments_prsnt > 1):
-		play_bar += emojis["bar3r"]
+		playbar += emojis["bar3r"]
+	playbar += f'   {format_time(video_info[id]["secs_length"])}'
 
-	play_bar += f'   {format_time(video_info[id]["secs_length"])}'
-	
-	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{play_bar}', color=snoo_color)
-	thumbnail_embed = None
-	if (server_config[guild]["large nowplaying thumbnail"]):
-		thumbnail_embed = discord.Embed(color = snoo_color)
+	try:
+		urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
+	except:
+		find_video_info(id)
+		urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
+	img = Image.open("Cache\img.png")
+	pix = img.load()
+	pixel = [0, 0, 0]
+	for i in range(img.size[1]):
+		pixel[0] += pix[0, i][0]
+		pixel[1] += pix[0, i][1]
+		pixel[2] += pix[0, i][2]
 
-		thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
-	else:
-		embed.set_thumbnail(url=video_info[id]["thumbnail"])
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
+	pixel[0] /= img.size[1]
+	pixel[1] /= img.size[1]
+	pixel[2] /= img.size[1]
+	# color = snoo_color
+	color = discord.Color.from_rgb(round(pixel[0]), round(pixel[1]), round(pixel[2]))
 
-	if (not server_config[guild]["slim nowplaying"]):
-		embed.add_field(name = language[lang_set]['ui']['field']['views'], value = "{:,}".format(video_info[id]["views"]), inline=True)
-		publish_date = str(video_info[id]["publish_date"])
-		embed.add_field(name = language[lang_set]['ui']['field']['upload_date'], value = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8])).strftime("%b %d %Y"), inline=True)
-	
+	publish_date = str(video_info[id]["publish_date"])
+	publish_date = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8]))
+	publish_date_delta = datetime.datetime.now() - publish_date
+	time_ago = publish_date.strftime("%b %d %Y")
+	if (not info[guild]["show_queue"]):
+		if (publish_date_delta.days >= 365):
+			years = floor(publish_date_delta.days / 365)
+			if (years == 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['year']['singular']
+			else:
+				time_ago = language[lang_set]['ui']['field']['time_delta']['year']['plural'].format(years)
+		elif (publish_date_delta.days >= 30):
+			months = floor(publish_date_delta.days / 30)
+			if (months == 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['month']['singular']
+			else:
+				time_ago = language[lang_set]['ui']['field']['time_delta']['month']['plural'].format(months)
+		elif (publish_date_delta.days > 0):
+			days = publish_date_delta.days
+			if (days == 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['day']['singular']
+			else:
+				time_ago = language[lang_set]['ui']['field']['time_delta']['day']['plural'].format(days)
+		elif (publish_date_delta.hours > 0):
+			hours = publish_date_delta.hours
+			if (hours == 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['hours']['singular']
+			else:
+				time_ago = language[lang_set]['ui']['field']['time_delta']['hour']['plural'].format(hours)
+		else:
+			minutes = publish_date_delta.hours
+			if (minutes == 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['singular']
+			elif (minutes < 1):
+				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['less_than']
+			else:
+				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['plural'].format(minutes)
+
+	views = '{:,}'.format(video_info[id]['views'])
+	if (not info[guild]["show_queue"]):
+		if (video_info[id]['views'] > 1000000000):
+			views = f"{round(video_info[id]['views'] / 1000000000)}{language[lang_set]['ui']['field']['number_multiplier']['billion']}"
+		elif (video_info[id]['views'] > 1000000):
+			views = f"{round(video_info[id]['views'] / 1000000)}{language[lang_set]['ui']['field']['number_multiplier']['million']}"
+		elif (video_info[id]['views'] > 1000):
+			views = f"{round(video_info[id]['views'] / 1000)}{language[lang_set]['ui']['field']['number_multiplier']['thousand']}"
+
+	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{playbar}', color=color)
+	thumbnail_embed = discord.Embed(color = color)
+	thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
+	thumbnail_embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
+	# print(video_info[id]["thumbnail"])
+	button_embed = discord.Embed(description = f"{views} {language[lang_set]['ui']['field']['views']} - {time_ago}", color = color)
+
 	if (info[guild]["show_queue"]):
 		songs = ""
 		durations = ""
@@ -725,22 +790,22 @@ def nowplaying_embed(guild, id):
 					songs += "\n"
 			else: 
 				early_break = True
-				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[guild]["queue"]) - i, format_time(total_time)))
+				button_embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[guild]["queue"]) - i, format_time(total_time)))
 				break
 
 			durations += format_time(video_info[info[guild]["queue"][i]]["secs_length"]) + "\n"
 
 		if (songs != ""):
-			embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
-			embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
+			button_embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
+			button_embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
 
 		if (info[guild]["autoplay"]):
-			embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
+			button_embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
 
 		if (not early_break):
-			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+			button_embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 
-	view = View()
+	view = View(timeout = None)
 
 	emoji = "🤍"
 	if (info[guild]["queue"][0] in playlists[guild]["liked"]):
@@ -775,18 +840,18 @@ def nowplaying_embed(guild, id):
 	button.callback = show_queue
 	view.add_item(button)
 
-	return [embed, thumbnail_embed, view]
+	return [embed, thumbnail_embed, view, button_embed]
 
 @snoo.command()
 async def nowplaying(ctx):
 	embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
-
-	if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
-		await info[ctx.guild.id]["thumbnail"].delete()
-		info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
+	# if (server_config[ctx.guild.id]["large nowplaying thumbnail"]):
+	await info[ctx.guild.id]["thumbnail"].delete()
+	info[ctx.guild.id]["thumbnail"] = await ctx.send(embed = embeds[1])
 	await info[ctx.guild.id]["nowplaying"].delete()
-
-	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0], view = embeds[2])
+	info[ctx.guild.id]["nowplaying"] = await ctx.send(embed = embeds[0])#, view = embeds[2])
+	await info[ctx.guild.id]["button_holder"].delete()
+	info[ctx.guild.id]["button_holder"] = await ctx.send(embed = embeds[3], view = embeds[2])
 	info[ctx.guild.id]["channel"] = ctx.channel
 
 async def update_nowplaying(guild):
@@ -798,7 +863,7 @@ async def update_nowplaying(guild):
 
 			if (info[guild]["voice"].is_playing()):
 				embeds = nowplaying_embed(guild, info[guild]["queue"][0])
-				await info[guild]["nowplaying"].edit(embed = embeds[0], view = embeds[2])
+				await info[guild]["nowplaying"].edit(embed = embeds[0])#, view = embeds[2])
 
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
@@ -811,12 +876,13 @@ async def update_nowplaying(guild):
 
 			embeds = nowplaying_embed(guild, info[guild]["queue"][0])
 
-			if (server_config[guild]["large nowplaying thumbnail"]):
-				await info[guild]["thumbnail"].delete()
-				info[guild]["thumbnail"] = await info[guild]["channel"].send(embed = embeds[1])
+			# if (server_config[guild]["large nowplaying thumbnail"]):
+			await info[guild]["thumbnail"].delete()
+			info[guild]["thumbnail"] = await info[guild]["channel"].send(embed = embeds[1])
 			await info[guild]["nowplaying"].delete()
-
-			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = embeds[0], view = embeds[2])
+			info[guild]["nowplaying"] = await info[guild]["channel"].send(embed = embeds[0])#, view = embeds[2])
+			await info[guild]["button_holder"].delete()
+			info[guild]["button_holder"] = await info[guild]["channel"].send(embed = embeds[3], view = embeds[2])
 
 	except:
 		print("update failed")
@@ -832,7 +898,9 @@ async def play_next(guild):
 	elif (info[guild]["autoplay"]):
 		await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = info[guild]["recomended_vid"])
 
-	await info[guild]["thumbnail"].edit(embed = nowplaying_embed(guild, info[guild]["queue"][0])[1])
+	embeds = nowplaying_embed(guild, info[guild]["queue"][0])
+	await info[guild]["thumbnail"].edit(embed = embeds[1])
+	await info[guild]["button_holder"].edit(embed = embeds[3])
 	
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
 	watch_prsnt = time_since_start.seconds * (1 / video_info[current_url]["secs_length"])
@@ -905,7 +973,7 @@ async def show_queue(interaction):
 		info[interaction.guild.id]["show_queue"] = True
 
 	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
-	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+	await interaction.response.edit_message(embed = embeds[3], view = embeds[2])
 
 @snoo.command()
 async def stop(ctx):
@@ -956,7 +1024,7 @@ async def pause_button(interaction):
 		info[interaction.guild.id]["start_time"] += datetime.datetime.now() - info[interaction.guild.id]["pause_time"]
 
 	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
-	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+	await interaction.response.edit_message(embed = embeds[3], view = embeds[2])
 
 @snoo.command()
 async def skip(ctx):
@@ -1023,7 +1091,7 @@ async def like_button(interaction):
 		playlists[interaction.guild.id]["liked"].append(info[interaction.guild.id]["queue"][0])
 
 	embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
-	await interaction.response.edit_message(embed = embeds[0], view = embeds[2])
+	await interaction.response.edit_message(embed = embeds[3], view = embeds[2])
 
 async def check_if_song_ended(guild):
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
