@@ -29,6 +29,7 @@ from validators import url
 import queue
 from logging import FileHandler
 from PIL import Image
+import extcolors
 
 from System.system import *
 
@@ -700,6 +701,9 @@ def nowplaying_embed(guild, id):
 	except:
 		find_video_info(id)
 		urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
+
+	color_pallet = extcolors.extract_from_path("Cache\img.png", tolerance = 12, limit = 4)
+	print(color_pallet)
 	img = Image.open("Cache\img.png")
 	pix = img.load()
 	pixel = [0, 0, 0]
@@ -711,7 +715,7 @@ def nowplaying_embed(guild, id):
 	pixel[0] /= img.size[1]
 	pixel[1] /= img.size[1]
 	pixel[2] /= img.size[1]
-	# color = snoo_color
+	color = snoo_color
 	color = discord.Color.from_rgb(round(pixel[0]), round(pixel[1]), round(pixel[2]))
 
 	publish_date = str(video_info[id]["publish_date"])
