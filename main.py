@@ -29,7 +29,7 @@ from validators import url
 import queue
 from logging import FileHandler
 from PIL import Image
-import extcolors
+from extcolors import extract_from_path
 
 from System.system import *
 
@@ -326,7 +326,21 @@ def find_videos_playlist(playlist_url):
 	
 	return playlist
 
+def thumbnail_palette(id):
+	# print("calculating color palette for: " + id)
+
+	urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
+	output_width = 900
+	img = Image.open("Cache\img.png")
+	wpercent = (output_width/float(img.size[0]))
+	hsize = int((float(img.size[1])*float(wpercent)))
+	img = img.resize((output_width,hsize), Image.Resampling.LANCZOS)
+	img.save("Cache\img.png")
+	color_pallet = extract_from_path("Cache\img.png", tolerance = 16, limit = 3)
+	video_info[id]["palette"] = (color_pallet[0][0][0], color_pallet[0][1][0], color_pallet[0][2][0])
+
 def find_video_info(id, only_source = False, only_rec = False):
+	print("finding info for: " + id)
 	if (not only_rec):
 		YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
 		with YoutubeDL(YDL_OPTIONS) as ydl:
@@ -338,24 +352,27 @@ def find_video_info(id, only_source = False, only_rec = False):
 
 		#id = vid["id"]
 		if (only_source):
-			video_info[id]["source"] = vid["url"]
+			sources[id] = vid["url"]
 			return True
 
 		video_info[id] = {}
-		video_info[id]["source"] = vid["url"]
+		sources[id] = vid["url"]
 		video_info[id]["title"] = vid["title"]
 		video_info[id]["views"] = vid["view_count"]
 		video_info[id]["secs_length"] = vid["duration"]
 		video_info[id]["publish_date"] = vid["upload_date"]
 		video_info[id]["channel_link"] = vid["channel_url"]
 		video_info[id]["channel_name"] = vid["uploader"]
+
 		attempt_i = -1
 		while (True):
 			video_info[id]["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
 			if (valid_url(video_info[id]["thumbnail"])):
 				break
 			attempt_i -= 1
-		str_json(vid["thumbnails"])
+		
+		video_info[id]["palette"] = (snoo_rgb, snoo_rgb, snoo_rgb)
+		Thread(target = thumbnail_palette, args = (id, )).start()
 
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
@@ -507,7 +524,6 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 			return
 
 		filtered_info = await filter_url(reference, channel, search)
-		print(filtered_info)
 		search = filtered_info[0]
 		id = filtered_info[1]
 		playlist = filtered_info[2]
@@ -535,19 +551,18 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 	if (not skip_search):
 		found_info = True
 		if (id not in video_info):
-			print("new video")
 			found_info = find_video_info(id)
 
-		print(id)
-		if (not valid_url(video_info[id]["source"])):
+		print("playing: " + id)
+		if (id not in sources or not valid_url(sources[id])):
 			print("url expired")
 			found_info = find_video_info(id, True)
 
 		if (not found_info):
 			if (searching_msg != None):
-				await searching_msg.edit(content = language[lang_set]["error"]["age_restricted"])
+				await searching_msg.edit(content = language[lang_set]["error"]["play_error"])
 			else:
-				await channel.send(language[lang_set]["error"]["age_restricted"])
+				await channel.send(language[lang_set]["error"]["play_error"])
 			return		
 
 		info[guild.id]["queue"].append(id)
@@ -567,6 +582,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 					await searching_msg.delete()
 
 				info[guild.id]["nowplaying_edits"] = 0
+				info[guild.id]["nowplaying_buffer"] = False
 				info[guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild.id))
 			else:
 				embed = small_queued_embed(id)
@@ -579,7 +595,8 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 		else:
 			await play_url(guild.id, id)
 
-		find_autoplay(guild.id, id, )
+		Thread(target = find_autoplay, args = (guild.id, id, )).start()
+		# find_autoplay(guild.id, id, )
 
 	if (playlist != None and len(playlist) > 0):
 		Thread(target = thread_find_playlist, args = (playlist, )).start()
@@ -591,7 +608,7 @@ async def play_url(guild, id):
 
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
-	info[guild]["voice"].play(FFmpegPCMAudio(source = video_info[id]["source"], **FFMPEG_OPTIONS))
+	info[guild]["voice"].play(FFmpegPCMAudio(source = sources[id], **FFMPEG_OPTIONS))
 	info[guild]["voice"].is_playing()
 	info[guild]["start_time"] = datetime.datetime.now()
 
@@ -601,10 +618,10 @@ def find_autoplay(guild, id):
 
 	for vid in video_info[id]["recomended_vids"]:
 		if (vid not in info[guild]["past queue"]):
-			info[guild]["recomended_vid"] = vid
 			if (vid not in video_info):
 				if (not find_video_info(vid)):
 					continue
+			info[guild]["recomended_vid"] = vid
 			print("autoplay: " + vid)
 			break
 
@@ -654,7 +671,8 @@ async def queued_embed(channel, playlist):
 	find_autoplay(embed_msg.guild.id, playlist[-1])
 
 def small_queued_embed(id):
-	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color = snoo_color)
+	color0 = discord.Color.from_rgb(video_info[id]["palette"][0][0], video_info[id]["palette"][0][1], video_info[id]["palette"][0][2])
+	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color = color0)
 	embed.set_thumbnail(url = video_info[id]["thumbnail"])
 	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
 	return embed
@@ -695,28 +713,6 @@ def nowplaying_embed(guild, id):
 	if (playbar_length - segments_prsnt > 1):
 		playbar += emojis["bar3r"]
 	playbar += f'   {format_time(video_info[id]["secs_length"])}'
-
-	try:
-		urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
-	except:
-		find_video_info(id)
-		urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
-
-	color_pallet = extcolors.extract_from_path("Cache\img.png", tolerance = 12, limit = 4)
-	print(color_pallet)
-	img = Image.open("Cache\img.png")
-	pix = img.load()
-	pixel = [0, 0, 0]
-	for i in range(img.size[1]):
-		pixel[0] += pix[0, i][0]
-		pixel[1] += pix[0, i][1]
-		pixel[2] += pix[0, i][2]
-
-	pixel[0] /= img.size[1]
-	pixel[1] /= img.size[1]
-	pixel[2] /= img.size[1]
-	color = snoo_color
-	color = discord.Color.from_rgb(round(pixel[0]), round(pixel[1]), round(pixel[2]))
 
 	publish_date = str(video_info[id]["publish_date"])
 	publish_date = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8]))
@@ -765,12 +761,15 @@ def nowplaying_embed(guild, id):
 		elif (video_info[id]['views'] > 1000):
 			views = f"{round(video_info[id]['views'] / 1000)}{language[lang_set]['ui']['field']['number_multiplier']['thousand']}"
 
-	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{playbar}', color=color)
-	thumbnail_embed = discord.Embed(color = color)
+	color0 = discord.Color.from_rgb(video_info[id]["palette"][0][0], video_info[id]["palette"][0][1], video_info[id]["palette"][0][2])
+	color1 = discord.Color.from_rgb(video_info[id]["palette"][1][0], video_info[id]["palette"][1][1], video_info[id]["palette"][1][2])
+	color2 = discord.Color.from_rgb(video_info[id]["palette"][2][0], video_info[id]["palette"][2][1], video_info[id]["palette"][2][2])
+
+	thumbnail_embed = discord.Embed(color = color0)
 	thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
 	thumbnail_embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
-	# print(video_info[id]["thumbnail"])
-	button_embed = discord.Embed(description = f"{views} {language[lang_set]['ui']['field']['views']} - {time_ago}", color = color)
+	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{playbar}', color=color1)
+	button_embed = discord.Embed(description = f"{views} {language[lang_set]['ui']['field']['views']} - {time_ago}", color = color2)
 
 	if (info[guild]["show_queue"]):
 		songs = ""
@@ -779,7 +778,8 @@ def nowplaying_embed(guild, id):
 		total_time = 0
 		for video in info[guild]["queue"]:
 			total_time += video_info[video]["secs_length"]
-		total_time += video_info[info[guild]["recomended_vid"]]["secs_length"]
+		if (info[guild]["recomended_vid"] != None):
+			total_time += video_info[info[guild]["recomended_vid"]]["secs_length"]
 
 		for i in range(len(info[guild]["queue"])):
 			if (i == 0):
@@ -803,7 +803,7 @@ def nowplaying_embed(guild, id):
 			button_embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
 			button_embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
 
-		if (info[guild]["autoplay"]):
+		if (info[guild]["autoplay"] and info[guild]["recomended_vid"] != None):
 			button_embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
 
 		if (not early_break):
@@ -811,9 +811,9 @@ def nowplaying_embed(guild, id):
 
 	view = View(timeout = None)
 
-	emoji = "🤍"
+	emoji = emojis["not_like"]
 	if (info[guild]["queue"][0] in playlists[guild]["liked"]):
-		emoji = "❤️"
+		emoji = emojis["like"]
 	button = Button(emoji = emoji)
 	button.callback = like_button
 	view.add_item(button)
@@ -833,13 +833,13 @@ def nowplaying_embed(guild, id):
 	button.callback = skip_button
 	view.add_item(button)
 
-	button = Button(emoji = "🛑")
+	button = Button(emoji = emojis["delete"])
 	button.callback = stop_button
 	view.add_item(button)
 
-	emoji = "🔽"
+	emoji = emojis["extend"]
 	if (info[guild]["show_queue"]):
-		emoji = "🔼"
+		emoji = emojis["collapse"]
 	button = Button(emoji = emoji)
 	button.callback = show_queue
 	view.add_item(button)
@@ -867,7 +867,12 @@ async def update_nowplaying(guild):
 
 			if (info[guild]["voice"].is_playing()):
 				embeds = nowplaying_embed(guild, info[guild]["queue"][0])
-				await info[guild]["nowplaying"].edit(embed = embeds[0])#, view = embeds[2])
+				await info[guild]["nowplaying"].edit(embed = embeds[0])
+
+				if (info[guild]["recomended_vid"] != None and info[guild]["nowplaying_buffer"] == True):
+					info[guild]["nowplaying_buffer"] = False
+					await info[guild]["thumbnail"].edit(embed = embeds[1])
+					await info[guild]["button_holder"].edit(embed = embeds[3], view = embeds[2])
 
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
@@ -900,7 +905,10 @@ async def play_next(guild):
 	if (len(info[guild]["queue"]) > 0):
 		await play_url(guild, info[guild]["queue"][0])
 	elif (info[guild]["autoplay"]):
-		await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = info[guild]["recomended_vid"])
+		vid = info[guild]["recomended_vid"]
+		info[guild]["recomended_vid"] = None
+		info[guild]["nowplaying_buffer"] = True
+		await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = vid)
 
 	embeds = nowplaying_embed(guild, info[guild]["queue"][0])
 	await info[guild]["thumbnail"].edit(embed = embeds[1])
@@ -1357,7 +1365,7 @@ async def save(ctx):
 
 async def upload_file(channel_id, name, file):
 	channel = snoo.get_channel(channel_id)
-	json_object = json.dumps(file, indent=4)
+	json_object = json.dumps(file)
 	with open(f"Data Files/{name}.json", "w") as outfile:
 		outfile.write(json_object)
 	await channel.send(file=discord.File(f"Data Files/{name}.json"))
@@ -1375,7 +1383,11 @@ async def new_save():
 	await upload_file(913524223870398534, "channel_messages", channel_messages)
 	await upload_file(985597229022724136, "server_config", server_config)
 	await upload_file(922592622248341505, "song_history", song_history)
-	await upload_file(993332319454760960, "video_info", video_info)
+	save_info = deepcopy(video_info)
+	for vid in save_info:
+		if "source" in vid:
+			vid.pop("source")
+	await upload_file(993332319454760960, "video_info", save_info)
 	await upload_file(999117002323001354, "playlists", playlists)
 
 	print("saved in " + str(round((datetime.datetime.now() - time).total_seconds() * 1000)) + "ms")

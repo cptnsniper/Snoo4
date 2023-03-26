@@ -10,6 +10,7 @@ playlists = defaultdict(dict)
 language = defaultdict(dict)
 missing_translations = defaultdict(dict)
 video_info = defaultdict(dict)
+sources = {}
 info = {}
 default_info = {
 	"channel": None,
@@ -26,6 +27,7 @@ default_info = {
 
 admin_command_message = "you need to be my master to use this command!"
 snoo_color = 0xe0917a
+snoo_rgb = (224, 145, 122)
 version = "0.4.36 (improvements)"
 test_server = 905495146890666005
 test_channel = 1046466554310701116
@@ -54,7 +56,12 @@ emojis = {
 	"bar1r": "<:bar1R:995467490052280320>",
 	"bar2rR": ["<:bar31:994069492026048713>", "<:bar21r:995476810194223135>", "<:bar2r:995476813495152690>", "<:bar22r:995476811637067836>", "<:bar12r:995476812173942816>"],
 	"bar2rL": ["<:bar31rr:995479103954239610>", "<:bar21rr:995479102066798612>", "<:bar2rr:995479104453361675>", "<:bar22rr:995479102976962695>", "<:bar12:994069492953010196>"],
-	"bar3r": "<:bar3R:995467514144378992>"
+	"bar3r": "<:bar3R:995467514144378992>",
+    "not_like": "<:notLike:1089678409480798238>",
+    "like": "<:like:1089678407878586528>",
+    "delete": "<:delete:1089680730084347904>",
+    "extend": "<:extend:1089681184818217021>",
+    "collapse": "<:collapse:1089681183064985641>"
 }
 
 new_playlist = {"title": "new playlist", "desc": "", "cover": "https://cdn.discordapp.com/attachments/908157040155832350/999112912352333854/snoo_cover.png", "songs": []}

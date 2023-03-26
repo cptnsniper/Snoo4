@@ -17,7 +17,8 @@
             "can_not_back": "this is the first song in queue, I have nothing to go back to!",
             "no_url": "you did not provide a url and I'm not playing anything so I don't know what to extract!",
             "extract": "I was unable to extract that url, are you sure it's a proper youtube url?",
-            "no_queue": "nothing in queue!"
+            "no_queue": "nothing in queue!",
+            "play_error": "sorry but something went wrong while I was trying to play that video!"
         },
         "notifs": {
             "loop_start": "I'll now loop the current song!",
