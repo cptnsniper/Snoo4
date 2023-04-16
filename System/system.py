@@ -31,6 +31,7 @@ snoo_rgb = (224, 145, 122)
 version = "0.4.36 (improvements)"
 test_server = 905495146890666005
 test_channel = 1046466554310701116
+admin = 401442600931950592
 lang_set = "English"
 
 default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
@@ -61,7 +62,11 @@ emojis = {
     "like": "<:like:1089678407878586528>",
     "delete": "<:delete:1089680730084347904>",
     "extend": "<:extend:1089681184818217021>",
-    "collapse": "<:collapse:1089681183064985641>"
+    "collapse": "<:collapse:1089681183064985641>",
+    "back": "<:back:1035618514800754768>",
+    "skip": "<:skip:1035618493376254044>",
+    "pause": "<:pause:1035617459295764490>",
+    "play": "<:play:1035617460541460520>"
 }
 
 new_playlist = {"title": "new playlist", "desc": "", "cover": "https://cdn.discordapp.com/attachments/908157040155832350/999112912352333854/snoo_cover.png", "songs": []}

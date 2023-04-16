@@ -27,7 +27,9 @@
             "autoplay_stop": "I'll no longer automaticaly play videos!",
             "searching": "searching for `{}`",
             "skip": "{} has skipped the current song!",
-            "back": "{} has rewinded to the previous track!"
+            "back": "{} has rewinded to the previous track!",
+            "shuffle": "I have shuffled the current queue!",
+            "unshuffle": "I have unshuffled the current queue!"
         },
         "ui": {
             "title": {

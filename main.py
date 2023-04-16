@@ -30,6 +30,7 @@ import queue
 from logging import FileHandler
 from PIL import Image
 from extcolors import extract_from_path
+import sys
 
 from System.system import *
 
@@ -233,7 +234,7 @@ async def user(ctx, *, user: discord.User):
 
 @snoo.command()
 async def say(ctx, *, args):
-	if (ctx.message.author.id == 401442600931950592):
+	if (ctx.message.author.id == admin):
 		await ctx.message.delete()
 		await ctx.send(args)
 
@@ -327,8 +328,6 @@ def find_videos_playlist(playlist_url):
 	return playlist
 
 def thumbnail_palette(id):
-	# print("calculating color palette for: " + id)
-
 	urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
 	output_width = 900
 	img = Image.open("Cache\img.png")
@@ -371,8 +370,9 @@ def find_video_info(id, only_source = False, only_rec = False):
 				break
 			attempt_i -= 1
 		
-		video_info[id]["palette"] = (snoo_rgb, snoo_rgb, snoo_rgb)
-		Thread(target = thumbnail_palette, args = (id, )).start()
+		# video_info[id]["palette"] = (snoo_rgb, snoo_rgb, snoo_rgb)
+		# Thread(target = thumbnail_palette, args = (id, )).start()
+		thumbnail_palette(id)
 
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
@@ -595,8 +595,8 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 		else:
 			await play_url(guild.id, id)
 
-		Thread(target = find_autoplay, args = (guild.id, id, )).start()
-		# find_autoplay(guild.id, id, )
+		# Thread(target = find_autoplay, args = (guild.id, id, )).start()
+		find_autoplay(guild.id, id, )
 
 	if (playlist != None and len(playlist) > 0):
 		Thread(target = thread_find_playlist, args = (playlist, )).start()
@@ -818,18 +818,18 @@ def nowplaying_embed(guild, id):
 	button.callback = like_button
 	view.add_item(button)
 
-	button = Button(emoji = "<:back:1035618514800754768>")
+	button = Button(emoji = emojis["back"])
 	button.callback = back_button
 	view.add_item(button)
 
-	emoji = "<:pause:1035617459295764490>"
+	emoji = emojis["pause"]
 	if (info[guild]["paused"]):
-		emoji = "<:play:1035617460541460520>"
+		emoji = emojis["play"]
 	button = Button(emoji = emoji)
 	button.callback = pause_button
 	view.add_item(button)
 
-	button = Button(emoji = "<:skip:1035618493376254044>")
+	button = Button(emoji = emojis["skip"])
 	button.callback = skip_button
 	view.add_item(button)
 
@@ -869,10 +869,10 @@ async def update_nowplaying(guild):
 				embeds = nowplaying_embed(guild, info[guild]["queue"][0])
 				await info[guild]["nowplaying"].edit(embed = embeds[0])
 
-				if (info[guild]["recomended_vid"] != None and info[guild]["nowplaying_buffer"] == True):
-					info[guild]["nowplaying_buffer"] = False
-					await info[guild]["thumbnail"].edit(embed = embeds[1])
-					await info[guild]["button_holder"].edit(embed = embeds[3], view = embeds[2])
+				# if (info[guild]["recomended_vid"] != None and info[guild]["nowplaying_buffer"] == True):
+				# 	info[guild]["nowplaying_buffer"] = False
+				# 	await info[guild]["thumbnail"].edit(embed = embeds[1])
+				# 	await info[guild]["button_holder"].edit(embed = embeds[3], view = embeds[2])
 
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
@@ -1073,8 +1073,10 @@ async def back(ctx):
 			embeds = nowplaying_embed(ctx.guild.id, info[ctx.guild.id]["queue"][0])
 			await ctx.edit(view = embeds[2])
 
+		cur_track = info[ctx.guild.id]["queue"][0]
 		info[ctx.guild.id]["queue"].insert(1, info[ctx.guild.id]["past queue"][-1])
 		await play_next(ctx.guild.id)
+		info[ctx.guild.id]["queue"].insert(1, cur_track)
 		del info[ctx.guild.id]["past queue"][-2:]
 	else:
 		await ctx.send(language[lang_set]["error"]["can_not_back"])
@@ -1085,10 +1087,13 @@ async def back_button(interaction):
 			info[interaction.guild.id]["paused"] = False
 			embeds = nowplaying_embed(interaction.guild.id, info[interaction.guild.id]["queue"][0])
 			await interaction.message.edit(view = embeds[2])
-		
+
+		cur_track = info[interaction.guild.id]["queue"][0]
 		info[interaction.guild.id]["queue"].insert(1, info[interaction.guild.id]["past queue"][-1])
 		await play_next(interaction.guild.id)
+		info[interaction.guild.id]["queue"].insert(1, cur_track)
 		del info[interaction.guild.id]["past queue"][-2:]
+		
 
 		#member = await interaction.guild.fetch_member(interaction.user.id)
 		await interaction.response.defer()
@@ -1154,10 +1159,10 @@ async def shuffle(ctx):
 			shuffle(info[ctx.guild.id]["queue"])
 
 			info[ctx.guild.id]["queue"].insert(0, nowplaying)
-			await ctx.send("I have shuffled the current queue!")
+			await ctx.send(language[lang_set]["notifs"]["shuffle"])
 		else:
 			info[ctx.guild.id]["queue"] = info[ctx.guild.id]["original queue"]
-			await ctx.send("I have unshuffled the current queue!")
+			await ctx.send(language[lang_set]["notifs"]["unshuffle"])
 
 # _________________________________________________________________ DEBUGING _________________________________________________________________
 
@@ -1173,6 +1178,25 @@ async def button_callback(interaction):
 	await interaction.response.send_message("hi " + str(interaction.user) + "!")
 
 # _________________________________________________________________ SYSTEM _________________________________________________________________
+
+@snoo.command()
+async def quit(ctx):
+	if (ctx.message.author.id == admin):
+		await ctx.send("stopping the program...")
+		sys.exit("stopped the program")
+	else:
+		await ctx.send(admin_command_message)
+
+@snoo.command()
+async def restart(ctx):
+	if (ctx.message.author.id == admin):
+		await ctx.send("restarting the program...")
+		print("restarting the program...")
+		os.system("python main.py")
+		asyncio.sleep(0.2)
+		quit()
+	else:
+		await ctx.send(admin_command_message)
 
 async def download_datafile(channel_id, name):
 	channel = snoo.get_channel(channel_id)
@@ -1281,7 +1305,7 @@ def str_json(string):
 
 @snoo.command()
 async def history(ctx):
-	if (ctx.message.author.id == 401442600931950592):
+	if (ctx.message.author.id == admin):
 		best_videos = {}
 		for day in range(len(song_history[ctx.guild.id][ctx.message.author.id])):
 			for video in song_history[ctx.guild.id][ctx.message.author.id][day]:
@@ -1325,7 +1349,7 @@ def similar(a, b):
 
 @snoo.command()
 async def add(ctx):
-	if (ctx.message.author.id == 401442600931950592):
+	if (ctx.message.author.id == admin):
 		add_entry()
 		await ctx.message.add_reaction("✅")
 	else:
@@ -1356,7 +1380,7 @@ def check_time():
 
 @snoo.command()
 async def save(ctx):
-	if (ctx.message.author.id == 401442600931950592):
+	if (ctx.message.author.id == admin):
 		await new_save()
 
 		await ctx.message.add_reaction("✅")
