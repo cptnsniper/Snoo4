@@ -91,6 +91,9 @@ async def on_command_error(ctx, error):
 
 @snoo.event
 async def on_message(message):
+	if (message.guild == None):
+		return
+
 	if (message.guild.id not in channel_messages) or (message.channel.id not in channel_messages[message.guild.id]):
 		channel_messages[message.guild.id][message.channel.id] = [1]
 	else:
@@ -327,18 +330,18 @@ def find_videos_playlist(playlist_url):
 	
 	return playlist
 
-def thumbnail_palette(id):
-	urlretrieve(video_info[id]["thumbnail"], "Cache\img.png")
-	output_width = 900
-	img = Image.open("Cache\img.png")
+def thumbnail_palette(thumbnail, discriminator = ""):
+	urlretrieve(thumbnail, f"Cache\img{discriminator}.png")
+	output_width = 300
+	img = Image.open(f"Cache\img{discriminator}.png")
 	wpercent = (output_width/float(img.size[0]))
 	hsize = int((float(img.size[1])*float(wpercent)))
 	img = img.resize((output_width,hsize), Image.Resampling.LANCZOS)
-	img.save("Cache\img.png")
-	color_pallet = extract_from_path("Cache\img.png", tolerance = 16, limit = 3)
-	video_info[id]["palette"] = (color_pallet[0][0][0], color_pallet[0][1][0], color_pallet[0][2][0])
+	img.save(f"Cache\img{discriminator}.png")
+	color_pallet = extract_from_path(f"Cache\img{discriminator}.png", tolerance = 16, limit = 3)
+	return (color_pallet[0][0][0], color_pallet[0][1][0], color_pallet[0][2][0])
 
-def find_video_info(id, only_source = False, only_rec = False):
+def find_video_info(id, only_source = False, only_rec = False, discriminator = ""):
 	print("finding info for: " + id)
 	if (not only_rec):
 		YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
@@ -354,25 +357,27 @@ def find_video_info(id, only_source = False, only_rec = False):
 			sources[id] = vid["url"]
 			return True
 
-		video_info[id] = {}
+		video_info_temp = {}
 		sources[id] = vid["url"]
-		video_info[id]["title"] = vid["title"]
-		video_info[id]["views"] = vid["view_count"]
-		video_info[id]["secs_length"] = vid["duration"]
-		video_info[id]["publish_date"] = vid["upload_date"]
-		video_info[id]["channel_link"] = vid["channel_url"]
-		video_info[id]["channel_name"] = vid["uploader"]
+		video_info_temp["title"] = vid["title"]
+		video_info_temp["views"] = vid["view_count"]
+		video_info_temp["secs_length"] = vid["duration"]
+		video_info_temp["publish_date"] = vid["upload_date"]
+		video_info_temp["channel_link"] = vid["channel_url"]
+		video_info_temp["channel_name"] = vid["uploader"]
 
 		attempt_i = -1
 		while (True):
-			video_info[id]["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
-			if (valid_url(video_info[id]["thumbnail"])):
+			video_info_temp["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
+			if (valid_url(video_info_temp["thumbnail"])):
 				break
 			attempt_i -= 1
 		
 		# video_info[id]["palette"] = (snoo_rgb, snoo_rgb, snoo_rgb)
 		# Thread(target = thumbnail_palette, args = (id, )).start()
-		thumbnail_palette(id)
+		video_info_temp["palette"] = thumbnail_palette(video_info_temp["thumbnail"], discriminator)
+
+		video_info[id] = video_info_temp
 
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
@@ -408,7 +413,7 @@ def search_yt(search):
 	else:
 		return True
 
-def search_and_find_info(search):
+def search_and_find_info(search, discriminator = ""):
 	if (not verify_yt_id(search)):
 		result = search_yt(search)
 		if (result == None):
@@ -418,7 +423,7 @@ def search_and_find_info(search):
 	
 	if (result not in video_info):
 		print("new video: " + result)
-		if (not find_video_info(result)):
+		if (not find_video_info(result, discriminator = discriminator)):
 			return None
 	
 	return result
@@ -428,7 +433,7 @@ def find_playlist_index(queue, thread):
 		queue_index = queue.get()
 		playlist = queue_index[0]
 		index = queue_index[1]
-		playlist[index] = search_and_find_info(playlist[index])
+		playlist[index] = search_and_find_info(playlist[index], thread)
 		queue.task_done()
 		print(f"thread #{thread}: queued index #{index}")
 
@@ -639,6 +644,9 @@ async def queued_embed(channel, playlist):
 			info[embed_msg.guild.id]["queue"].append(playlist[i])
 			total_time += video_info[playlist[i]]["secs_length"]
 			if (i == 0):
+				color0 = discord.Color.from_rgb(video_info[playlist[0]]["palette"][0][0], video_info[playlist[0]]["palette"][0][1], video_info[playlist[0]]["palette"][0][2])
+				embed = discord.Embed(color = color0)
+				embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
 				embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
 			if (i < 25):
 				embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
