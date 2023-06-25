@@ -32,12 +32,14 @@ version = "0.4.36 (improvements)"
 test_server = 905495146890666005
 test_channel = 1046466554310701116
 admin = 401442600931950592
-lang_set = "English"
+# lang_set = "English"
+lang_completion = {"English": 100}
 
-default_settings = {"votes": True, "downvote": True, "slim nowplaying": True, "large nowplaying thumbnail": True}
+default_settings = {"lang_set": "English", "votes": True, "downvote": False}
 settings_info = {
 	"votes": {"dev": False},
 	"downvote": {"dev": False},
+    "lang_set": {"dev": True},
 	# "slim nowplaying": {"dev": False},
 	# "large nowplaying thumbnail": {"dev": False}
 }

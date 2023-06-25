@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord.utils import get
 from discord import FFmpegPCMAudio
-from discord.ui import Button, View
+from discord.ui import Select, Button, View
 import os
 import json
 import datetime
@@ -182,42 +182,81 @@ async def on_reaction_remove(reaction, user):
 
 # _________________________________________________________________ UTILITY _________________________________________________________________
 
+def settings_embed(guild):
+	embed = discord.Embed(colour=snoo_color)
+	embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['settings'].upper()}", icon_url = settings_icon)
+
+	embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["language"].upper(), value = language[server_config[guild]["lang_set"]]["settings_info"]["language"], inline = True)
+	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+	embed.add_field(name = f'{language[server_config[guild]["lang_set"]]["flag"]} {server_config[guild]["lang_set"]}', value = "\u200b", inline = True)
+
+	view = View(timeout = None)
+
+	langs = []
+	for lang in language:
+		langs.append(discord.SelectOption(label = lang, emoji = language[lang]["flag"], default = lang == server_config[guild]["lang_set"]))
+
+	select = Select(placeholder = language[server_config[guild]["lang_set"]]["ui"]["field"]["select_language"], options = langs)
+	
+	async def change_lang(interaction):
+		server_config[guild]["lang_set"] = select.values[0]
+		embeds = settings_embed(interaction.guild.id)
+		await interaction.message.edit(embed = embeds[0], view = embeds[1])
+		await interaction.response.defer()
+	
+	select.callback = change_lang
+
+	view.add_item(select)
+
+	for config in server_config[guild]:
+		if (settings_info[config]["dev"]):
+			continue
+		embed.add_field(name = config.upper(), value = language[server_config[guild]["lang_set"]]["settings_info"][config], inline = True)
+		embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+		if (server_config[guild][config]):
+			embed.add_field(name = emojis["on"], value = "\u200b", inline = True)
+		else:
+			embed.add_field(name = emojis["off"], value = "\u200b", inline = True)
+
+		button = Button(label = config)
+		button.custom_id = config
+		button.callback = button_config
+		view.add_item(button)
+
+	return (embed, view)
+
 @snoo.command()
-async def config(ctx, *, setting = None):
+async def settings(ctx):
 	verify_settings(ctx.guild.id)
+	embeds = settings_embed(ctx.guild.id)
+	await ctx.send(embed = embeds[0], view = embeds[1])
+
+async def button_config(interaction):
+	setting = interaction.data["custom_id"]
 	if (setting != None):
 		setting = setting.lower()
-		if (setting in server_config[ctx.guild.id]):
-			if (server_config[ctx.guild.id][setting]):
-				server_config[ctx.guild.id][setting] = False
+		if (setting in server_config[interaction.guild.id]):
+			if (server_config[interaction.guild.id][setting]):
+				server_config[interaction.guild.id][setting] = False
 			else:
-				server_config[ctx.guild.id][setting] = True
-			await ctx.send("👍")
+				server_config[interaction.guild.id][setting] = True
+			
+			embeds = settings_embed(interaction.guild.id)
+			await interaction.message.edit(embed = embeds[0], view = embeds[1])
+			await interaction.response.defer()
 		else:
-			await ctx.send(language[lang_set]["error"]["setting_not_found"])
-	else:
-		embed = discord.Embed(colour=snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['settings'].upper()}", icon_url = settings_icon)
-		for config in server_config[ctx.guild.id]:
-			if (settings_info[config]["dev"]):
-				continue
-			embed.add_field(name = config.upper(), value = language[lang_set]["settings_info"][config], inline = True)
-			embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-			if (server_config[ctx.guild.id][config]):
-				embed.add_field(name = emojis["on"], value = "\u200b", inline = True)
-			else:
-				embed.add_field(name = emojis["off"], value = "\u200b", inline = True)
-		await ctx.send(embed=embed)
+			await interaction.response.send_message(language[server_config[interaction.guild.id]["lang_set"]]["error"]["setting_not_found"])
 
 @snoo.command()
 async def poll(ctx, name, *, opts):
+	verify_settings(ctx.guild.id)
 	opts_list = opts.split(',')
 
 	embed = discord.Embed(title = name, colour = snoo_color)
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['poll'].upper()}", icon_url = poll_icon)
+	embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['poll'].upper()}", icon_url = poll_icon)
 
 	for i in range(len(opts_list)):
-		embed.add_field(name = f"{language[lang_set]['ui']['field']['option']}  {emojis['poll'][i]}", value = opts_list[i], inline=False)
+		embed.add_field(name = f"{language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['option']}  {emojis['poll'][i]}", value = opts_list[i], inline=False)
 
 		if (i >= 6):
 			break
@@ -244,6 +283,7 @@ async def say(ctx, *, args):
 #display information
 @snoo.command()
 async def profile(ctx, *, user: discord.User = 0):
+	verify_settings(ctx.guild.id)
 	if (user == 0):
 		user_id = ctx.message.author.id
 	else:
@@ -257,14 +297,14 @@ async def profile(ctx, *, user: discord.User = 0):
 
 	embed = discord.Embed(colour = snoo_color)
 
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['profile'].format(username).upper()}", icon_url = profile_icon)
+	embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['profile'].format(username).upper()}", icon_url = profile_icon)
 
-	embed.add_field(name = language[lang_set]['ui']['field']['karma']['title'], value = language[lang_set]['ui']['field']['karma']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['karma'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['karma'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = language[lang_set]['ui']['field']['friendship']['title'], value = language[lang_set]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
-	embed.add_field(name = language[lang_set]['ui']['field']['messages']['title'], value = language[lang_set]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = language[lang_set]['ui']['field']['vc_hours']['title'], value = language[lang_set]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
 	
 	await ctx.send(embed = embed)
 
@@ -292,10 +332,11 @@ async def graph(ctx, type, *, data: discord.User):
 
 @snoo.command()
 async def playlist(ctx, *, playlist = None):
+	verify_settings(ctx.guild.id)
 	print(playlists[ctx.guild.id])
 	if (playlist in playlists[ctx.guild.id]):
 		embed = discord.Embed(title = playlists[ctx.guild.id][playlist]["title"], description = playlists[ctx.guild.id][playlist]["desc"], color = snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['playlist'].upper()}", icon_url=music_icon)
+		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['playlist'].upper()}", icon_url=music_icon)
 		embed.set_thumbnail(url = playlists[ctx.guild.id][playlist]["cover"])
 		for song in playlists[ctx.guild.id][playlist]["songs"]:
 			embed.add_field(name = video_info[song]["title"], value = video_info[song]["channel_name"], inline = True)
@@ -453,6 +494,7 @@ def thread_find_playlist(playlist):
 	q.join()
 
 async def filter_url(reference, channel, search):
+	verify_settings(channel.guild.id)
 	if (reference is None):
 		if (url(search) and "youtube" in search and "list=" in search):
 			return (search, None, find_videos_playlist(search))
@@ -478,13 +520,13 @@ async def filter_url(reference, channel, search):
 					if (verify_yt_id(yt_id(temp_url))):
 						return (search, yt_id(temp_url), None)
 					else:
-						await channel.send(language[lang_set]["error"]["not_youtube"])
+						await channel.send(language[server_config[channel.guild.id]["lang_set"]]["error"]["not_youtube"])
 						return
 				else:		
-					await channel.send(language[lang_set]["error"]["no_content"])
+					await channel.send(language[server_config[channel.guild.id]["lang_set"]]["error"]["no_content"])
 					return
 			elif (message_reference.content == ""):
-				await channel.send(language[lang_set]["error"]["no_content"])
+				await channel.send(language[server_config[channel.guild.id]["lang_set"]]["error"]["no_content"])
 				return
 			else:
 				return (message_reference.content, None, None)
@@ -509,11 +551,12 @@ async def play(ctx, *, search = None):
 	await play_sys(ctx.guild, ctx.channel, ctx.message.reference, ctx.message.author, search)
 
 async def play_sys(guild = None, channel = None, reference = None, user = None, search = None, autoplay = None):
+	verify_settings(guild.id)
 	skip_search = False
 	playlist = None
 	searching_msg = None
 	id = None
-	searching = f'{language[lang_set]["notifs"]["searching"]} {loading_icon}'
+	searching = f'{language[server_config[guild.id]["lang_set"]]["notifs"]["searching"]} {loading_icon}'
 
 	if (autoplay == None):
 		if (guild.id not in playlists or "liked" not in playlists[guild.id]):
@@ -525,7 +568,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 			info[guild.id]["voice"] = get(snoo.voice_clients, guild = guild)
 		
 		if (type(user.voice) == type(None)):
-			await channel.send(language[lang_set]["error"]["no_vc"])
+			await channel.send(language[server_config[guild.id]["lang_set"]]["error"]["no_vc"])
 			return
 
 		filtered_info = await filter_url(reference, channel, search)
@@ -548,7 +591,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 				searching_msg = await channel.send(searching.format(search))
 				id = search_and_find_info(search)
 				if (id == None):
-					await searching_msg.edit(content = language[lang_set]["error"]["nothing_found"])
+					await searching_msg.edit(content = language[server_config[guild.id]["lang_set"]]["error"]["nothing_found"])
 					return
 	else:
 		id = autoplay
@@ -565,9 +608,9 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 
 		if (not found_info):
 			if (searching_msg != None):
-				await searching_msg.edit(content = language[lang_set]["error"]["play_error"])
+				await searching_msg.edit(content = language[server_config[guild.id]["lang_set"]]["error"]["play_error"])
 			else:
-				await channel.send(language[lang_set]["error"]["play_error"])
+				await channel.send(language[server_config[guild.id]["lang_set"]]["error"]["play_error"])
 			return		
 
 		info[guild.id]["queue"].append(id)
@@ -590,7 +633,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 				info[guild.id]["nowplaying_buffer"] = False
 				info[guild.id]["task"] = asyncio.create_task(async_timer(1, update_nowplaying, guild.id))
 			else:
-				embed = small_queued_embed(id)
+				embed = small_queued_embed(guild, id)
 
 				if (searching_msg != None):
 					await searching_msg.edit(content="", embed = embed)
@@ -631,12 +674,13 @@ def find_autoplay(guild, id):
 			break
 
 async def queued_embed(channel, playlist):
+	verify_settings(channel.guild.id)
 	edit_needed = False
 	i = 0
 	total_time = 0
 
 	embed = discord.Embed(color = snoo_color)
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
+	embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
 	embed_msg = await channel.send(embed = embed)
 
 	while (i < len(playlist)):
@@ -646,17 +690,17 @@ async def queued_embed(channel, playlist):
 			if (i == 0):
 				color0 = discord.Color.from_rgb(video_info[playlist[0]]["palette"][0][0], video_info[playlist[0]]["palette"][0][1], video_info[playlist[0]]["palette"][0][2])
 				embed = discord.Embed(color = color0)
-				embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
+				embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
 				embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
 			if (i < 25):
 				embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
 			else:
-				embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(i - 24, format_time(total_time)))
+				embed.set_footer(text = language[server_config[channel.guild.id]['lang_set']]["ui"]["field"]["queue_footer"]["full"].format(i - 24, format_time(total_time)))
 
 			if (edit_needed):
 				if (i == 0):
 					embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-				embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()} {i + 1} / {len(playlist)}", icon_url = music_icon)
+				embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {i + 1} / {len(playlist)}", icon_url = music_icon)
 				
 				await embed_msg.edit(embed = embed)
 				edit_needed = False
@@ -668,9 +712,9 @@ async def queued_embed(channel, playlist):
 			edit_needed = True
 
 	embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()}", icon_url = music_icon)
 	if (len(playlist) < 25):
-		embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+		embed.set_footer(text = language[server_config[channel.guild.id]['lang_set']]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 	if (embed_msg == None):
 		embed_msg = await embed_msg.send(embed = embed)
 	else:
@@ -678,11 +722,12 @@ async def queued_embed(channel, playlist):
 
 	find_autoplay(embed_msg.guild.id, playlist[-1])
 
-def small_queued_embed(id):
+def small_queued_embed(guild, id):
+	verify_settings(guild)
 	color0 = discord.Color.from_rgb(video_info[id]["palette"][0][0], video_info[id]["palette"][0][1], video_info[id]["palette"][0][2])
 	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color = color0)
 	embed.set_thumbnail(url = video_info[id]["thumbnail"])
-	embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['queued'].upper()}", icon_url = music_icon)
 	return embed
 
 def nowplaying_embed(guild, id):
@@ -730,44 +775,44 @@ def nowplaying_embed(guild, id):
 		if (publish_date_delta.days >= 365):
 			years = floor(publish_date_delta.days / 365)
 			if (years == 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['year']['singular']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['year']['singular']
 			else:
-				time_ago = language[lang_set]['ui']['field']['time_delta']['year']['plural'].format(years)
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['year']['plural'].format(years)
 		elif (publish_date_delta.days >= 30):
 			months = floor(publish_date_delta.days / 30)
 			if (months == 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['month']['singular']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['month']['singular']
 			else:
-				time_ago = language[lang_set]['ui']['field']['time_delta']['month']['plural'].format(months)
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['month']['plural'].format(months)
 		elif (publish_date_delta.days > 0):
 			days = publish_date_delta.days
 			if (days == 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['day']['singular']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['day']['singular']
 			else:
-				time_ago = language[lang_set]['ui']['field']['time_delta']['day']['plural'].format(days)
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['day']['plural'].format(days)
 		elif (publish_date_delta.hours > 0):
 			hours = publish_date_delta.hours
 			if (hours == 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['hours']['singular']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['hours']['singular']
 			else:
-				time_ago = language[lang_set]['ui']['field']['time_delta']['hour']['plural'].format(hours)
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['hour']['plural'].format(hours)
 		else:
 			minutes = publish_date_delta.hours
 			if (minutes == 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['singular']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['minute']['singular']
 			elif (minutes < 1):
-				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['less_than']
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['minute']['less_than']
 			else:
-				time_ago = language[lang_set]['ui']['field']['time_delta']['minute']['plural'].format(minutes)
+				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['minute']['plural'].format(minutes)
 
 	views = '{:,}'.format(video_info[id]['views'])
 	if (not info[guild]["show_queue"]):
 		if (video_info[id]['views'] > 1000000000):
-			views = f"{round(video_info[id]['views'] / 1000000000)}{language[lang_set]['ui']['field']['number_multiplier']['billion']}"
+			views = f"{round(video_info[id]['views'] / 1000000000)}{language[server_config[guild]['lang_set']]['ui']['field']['number_multiplier']['billion']}"
 		elif (video_info[id]['views'] > 1000000):
-			views = f"{round(video_info[id]['views'] / 1000000)}{language[lang_set]['ui']['field']['number_multiplier']['million']}"
+			views = f"{round(video_info[id]['views'] / 1000000)}{language[server_config[guild]['lang_set']]['ui']['field']['number_multiplier']['million']}"
 		elif (video_info[id]['views'] > 1000):
-			views = f"{round(video_info[id]['views'] / 1000)}{language[lang_set]['ui']['field']['number_multiplier']['thousand']}"
+			views = f"{round(video_info[id]['views'] / 1000)}{language[server_config[guild]['lang_set']]['ui']['field']['number_multiplier']['thousand']}"
 
 	color0 = discord.Color.from_rgb(video_info[id]["palette"][0][0], video_info[id]["palette"][0][1], video_info[id]["palette"][0][2])
 	color1 = discord.Color.from_rgb(video_info[id]["palette"][1][0], video_info[id]["palette"][1][1], video_info[id]["palette"][1][2])
@@ -775,9 +820,9 @@ def nowplaying_embed(guild, id):
 
 	thumbnail_embed = discord.Embed(color = color0)
 	thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
-	thumbnail_embed.set_author(name = f"||  {language[lang_set]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
+	thumbnail_embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
 	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{playbar}', color=color1)
-	button_embed = discord.Embed(description = f"{views} {language[lang_set]['ui']['field']['views']} - {time_ago}", color = color2)
+	button_embed = discord.Embed(description = f"{views} {language[server_config[guild]['lang_set']]['ui']['field']['views']} - {time_ago}", color = color2)
 
 	if (info[guild]["show_queue"]):
 		songs = ""
@@ -802,20 +847,20 @@ def nowplaying_embed(guild, id):
 					songs += "\n"
 			else: 
 				early_break = True
-				button_embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[guild]["queue"]) - i, format_time(total_time)))
+				button_embed.set_footer(text = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_footer"]["full"].format(len(info[guild]["queue"]) - i, format_time(total_time)))
 				break
 
 			durations += format_time(video_info[info[guild]["queue"][i]]["secs_length"]) + "\n"
 
 		if (songs != ""):
-			button_embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
-			button_embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["next_up"], value = songs, inline=True)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["duration"], value = durations, inline=True)
 
 		if (info[guild]["autoplay"] and info[guild]["recomended_vid"] != None):
-			button_embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
 
 		if (not early_break):
-			button_embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+			button_embed.set_footer(text = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 
 	view = View(timeout = None)
 
@@ -936,9 +981,10 @@ async def play_next(guild):
 
 @snoo.command()
 async def queue(ctx):
+	verify_settings(ctx.guild.id)
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		embed=discord.Embed(title = "", description = "", color=snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['queue'].upper()}", icon_url=music_icon)
+		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['queue'].upper()}", icon_url=music_icon)
 		
 		songs = ""
 		durations = ""
@@ -968,21 +1014,21 @@ async def queue(ctx):
 						songs += "\n"
 				else: 
 					early_break = True
-					embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
+					embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
 					break
 
 				#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
 				durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
 
 		if (songs != ""):
-			embed.add_field(name = language[lang_set]["ui"]["field"]["next_up"], value = songs, inline=True)
-			embed.add_field(name = language[lang_set]["ui"]["field"]["duration"], value = durations, inline=True)
+			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["next_up"], value = songs, inline=True)
+			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["duration"], value = durations, inline=True)
 
 		if (info[ctx.guild.id]["autoplay"]):
-			embed.add_field(name = language[lang_set]["ui"]["field"]["autoplay"], value = video_info[info[ctx.guild.id]["recomended_vid"]]["title"], inline = False)
+			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["autoplay"], value = video_info[info[ctx.guild.id]["recomended_vid"]]["title"], inline = False)
 
 		if (not early_break):
-			embed.set_footer(text = language[lang_set]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+			embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 		
 		await ctx.send(embed=embed)
 
@@ -997,6 +1043,7 @@ async def show_queue(interaction):
 
 @snoo.command()
 async def stop(ctx):
+	verify_settings(ctx.guild.id)
 	if (ctx.guild.id in info and len(info[ctx.guild.id]["queue"]) >= 1):
 		#info[ctx.guild.id]["queue"].clear()
 		info[ctx.guild.id]["voice"].stop()
@@ -1004,11 +1051,12 @@ async def stop(ctx):
 		await info[ctx.guild.id]["voice"].disconnect()
 		info.pop(ctx.guild.id)
 
-		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['stopped'], description = f"", color=snoo_color)
+		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
 		await ctx.send(embed = embed)
 
 async def stop_button(interaction):
+	verify_settings(interaction.guild.id)
 	if (interaction.guild.id in info):
 		#info[ctx.guild.id]["queue"].clear()
 		info[interaction.guild.id]["voice"].stop()
@@ -1016,8 +1064,8 @@ async def stop_button(interaction):
 		await info[interaction.guild.id]["voice"].disconnect()
 		info.pop(interaction.guild.id)
 
-		embed=discord.Embed(title = language[lang_set]['ui']['field']['stopped'], description = f"", color=snoo_color)
-		embed.set_author(name = f"||  {language[lang_set]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[interaction.guild.id]['lang_set']]['ui']['field']['stopped'], description = f"", color=snoo_color)
+		embed.set_author(name = f"||  {language[server_config[interaction.guild.id]['lang_set']]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
 		await interaction.response.send_message(embed = embed)
 
 @snoo.command()
@@ -1048,6 +1096,7 @@ async def pause_button(interaction):
 
 @snoo.command()
 async def skip(ctx):
+	verify_settings(ctx.guild.id)
 	if (len(info[ctx.guild.id]["queue"]) > 1 or info[ctx.guild.id]["autoplay"]):
 		if (info[ctx.guild.id]["paused"]):
 			info[ctx.guild.id]["paused"] = False
@@ -1056,9 +1105,10 @@ async def skip(ctx):
 
 		await play_next(ctx.guild.id)
 	else:
-		await ctx.send(language[lang_set]["error"]["can_not_skip"])
+		await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["error"]["can_not_skip"])
 
 async def skip_button(interaction):
+	verify_settings(interaction.guild.id)
 	if (len(info[interaction.guild.id]["queue"]) > 1 or info[interaction.guild.id]["autoplay"]):
 		if (info[interaction.guild.id]["paused"]):
 			info[interaction.guild.id]["paused"] = False
@@ -1071,10 +1121,11 @@ async def skip_button(interaction):
 		await interaction.response.defer()
 		#await interaction.response.send_message(language[lang_set]["notifs"]["skip"].format(member.nick))
 	else:
-		await interaction.response.send_message(language[lang_set]["error"]["can_not_skip"])
+		await interaction.response.send_message(language[server_config[interaction.guild.id]['lang_set']]["error"]["can_not_skip"])
 
 @snoo.command()
 async def back(ctx):
+	verify_settings(ctx.guild.id)
 	if (len(info[ctx.guild.id]["past queue"]) >= 1):
 		if (info[ctx.guild.id]["paused"]):
 			info[ctx.guild.id]["paused"] = False
@@ -1087,9 +1138,10 @@ async def back(ctx):
 		info[ctx.guild.id]["queue"].insert(1, cur_track)
 		del info[ctx.guild.id]["past queue"][-2:]
 	else:
-		await ctx.send(language[lang_set]["error"]["can_not_back"])
+		await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["error"]["can_not_back"])
 
 async def back_button(interaction):
+	verify_settings(interaction.guild.id)
 	if (len(info[interaction.guild.id]["past queue"]) >= 1):
 		if (info[interaction.guild.id]["paused"]):
 			info[interaction.guild.id]["paused"] = False
@@ -1107,7 +1159,7 @@ async def back_button(interaction):
 		await interaction.response.defer()
 		#await interaction.response.send_message(language[lang_set]["notifs"]["back"].format(member.nick))
 	else:
-		await interaction.response.send_message(language[lang_set]["error"]["can_not_back"])
+		await interaction.response.send_message(language[server_config[interaction.guild.id]['lang_set']]["error"]["can_not_back"])
 
 async def like_button(interaction):
 	if (info[interaction.guild.id]["queue"][0] in playlists[interaction.guild.id]["liked"]):
@@ -1119,6 +1171,7 @@ async def like_button(interaction):
 	await interaction.response.edit_message(embed = embeds[3], view = embeds[2])
 
 async def check_if_song_ended(guild):
+	verify_settings(guild)
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
 	if (time_since_start.seconds + 1 < video_info[info[guild]["queue"][0]]["secs_length"]):
 		return False
@@ -1129,8 +1182,8 @@ async def check_if_song_ended(guild):
 		await info[guild]["voice"].disconnect()
 		info[guild]["task"].cancel()
 
-		embed=discord.Embed(title = language[lang_set]["ui"]["field"]["queue_end"], description = "", color=snoo_color)
-		embed.set_author(name = f'||  {language[lang_set]["ui"]["title"]["queue_end"].upper()}', icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_end"], description = "", color=snoo_color)
+		embed.set_author(name = f'||  {language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].upper()}', icon_url=music_icon)
 		await info[guild]["channel"].send(embed=embed)
 
 		info[guild]["queue"].clear()
@@ -1138,26 +1191,29 @@ async def check_if_song_ended(guild):
 
 @snoo.command()
 async def loop(ctx):
+	verify_settings(ctx.guild.id)
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (info[ctx.guild.id]["looping"]):
 			info[ctx.guild.id]["looping"] = False
-			await ctx.send(language[lang_set]["notifs"]["loop_stop"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["loop_stop"])
 		else:
 			info[ctx.guild.id]["looping"] = True
-			await ctx.send(language[lang_set]["notifs"]["loop_start"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["loop_start"])
 
 @snoo.command()
 async def autoplay(ctx):
+	verify_settings(ctx.guild.id)
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (info[ctx.guild.id]["autoplay"]):
 			info[ctx.guild.id]["autoplay"] = False
-			await ctx.send(language[lang_set]["notifs"]["autoplay_stop"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["autoplay_stop"])
 		else:
 			info[ctx.guild.id]["autoplay"] = True
-			await ctx.send(language[lang_set]["notifs"]["autoplay_start"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["autoplay_start"])
 
 @snoo.command()
 async def shuffle(ctx):
+	verify_settings(ctx.guild.id)
 	if (info[ctx.guild.id]["voice"].is_playing()):
 		if (not info[ctx.guild.id]["shuffle"]):
 			nowplaying = info[ctx.guild.id]["queue"][0]
@@ -1167,10 +1223,10 @@ async def shuffle(ctx):
 			shuffle(info[ctx.guild.id]["queue"])
 
 			info[ctx.guild.id]["queue"].insert(0, nowplaying)
-			await ctx.send(language[lang_set]["notifs"]["shuffle"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["shuffle"])
 		else:
 			info[ctx.guild.id]["queue"] = info[ctx.guild.id]["original queue"]
-			await ctx.send(language[lang_set]["notifs"]["unshuffle"])
+			await ctx.send(language[server_config[ctx.guild.id]['lang_set']]["notifs"]["unshuffle"])
 
 # _________________________________________________________________ DEBUGING _________________________________________________________________
 
