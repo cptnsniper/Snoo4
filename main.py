@@ -8,7 +8,7 @@ import json
 import datetime
 from threading import Thread, Timer
 import asyncio
-from math import fsum, floor
+from math import fsum, floor, ceil
 from pandas import DataFrame
 from cryptography.fernet import Fernet
 from urllib.parse import urlparse, urlencode, parse_qs
@@ -46,6 +46,8 @@ if (not os.path.isdir('Cache')):
 async def on_ready():
 	print(f'we have logged in as {snoo.user}')
 	await snoo.tree.sync()#guild = discord.Object(test_server))
+	# snoo.tree.clear_commands(guild=None)
+	# await snoo.tree.sync()
 	await snoo.change_presence(activity = discord.Activity(type = discord.ActivityType.playing, name = "music for my friends!"))
 
 	await initialize_data()
@@ -184,9 +186,9 @@ async def on_reaction_remove(reaction, user):
 
 def settings_embed(guild):
 	embed = discord.Embed(colour=snoo_color)
-	embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['settings'].upper()}", icon_url = settings_icon)
+	embed.set_author(name = title_format.format(language[server_config[guild]['lang_set']]['ui']['title']['settings'].title()), icon_url = settings_icon)
 
-	embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["language"].upper(), value = language[server_config[guild]["lang_set"]]["settings_info"]["language"], inline = True)
+	embed.add_field(name = language[server_config[guild]["lang_set"]]["setting_names"]["language"].title(), value = language[server_config[guild]["lang_set"]]["settings_info"]["language"], inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 	embed.add_field(name = f'{language[server_config[guild]["lang_set"]]["flag"]} {server_config[guild]["lang_set"]}', value = "\u200b", inline = True)
 
@@ -211,14 +213,14 @@ def settings_embed(guild):
 	for config in server_config[guild]:
 		if (settings_info[config]["dev"]):
 			continue
-		embed.add_field(name = config.upper(), value = language[server_config[guild]["lang_set"]]["settings_info"][config], inline = True)
+		embed.add_field(name = language[server_config[guild]["lang_set"]]["setting_names"][config].title(), value = language[server_config[guild]["lang_set"]]["settings_info"][config], inline = True)
 		embed.add_field(name = '\u200b', value = '\u200b', inline = True)
 		if (server_config[guild][config]):
 			embed.add_field(name = emojis["on"], value = "\u200b", inline = True)
 		else:
 			embed.add_field(name = emojis["off"], value = "\u200b", inline = True)
 
-		button = Button(label = config)
+		button = Button(label = language[server_config[guild]["lang_set"]]["setting_names"][config].title())
 		button.custom_id = config
 		button.callback = button_config
 		view.add_item(button)
@@ -253,10 +255,10 @@ async def poll(ctx, name, *, opts):
 	opts_list = opts.split(',')
 
 	embed = discord.Embed(title = name, colour = snoo_color)
-	embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['poll'].upper()}", icon_url = poll_icon)
+	embed.set_author(name = title_format.format(language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['poll'].title()), icon_url = poll_icon)
 
 	for i in range(len(opts_list)):
-		embed.add_field(name = f"{language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['option']}  {emojis['poll'][i]}", value = opts_list[i], inline=False)
+		embed.add_field(name = f"{language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['option'].title()}  {emojis['poll'][i]}", value = opts_list[i], inline=False)
 
 		if (i >= 6):
 			break
@@ -290,6 +292,7 @@ async def profile(ctx, *, user: discord.User = 0):
 		user_id = user.id
 
 	user = await snoo.fetch_user(user_id)
+	print(user)
 	split_user = str(user).split("#", 1)
 	username = split_user[0]
 
@@ -297,14 +300,14 @@ async def profile(ctx, *, user: discord.User = 0):
 
 	embed = discord.Embed(colour = snoo_color)
 
-	embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['profile'].format(username).upper()}", icon_url = profile_icon)
+	embed.set_author(name = title_format.format(language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['profile'].title().format(username)), icon_url = profile_icon)
 
-	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['karma'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['title'].title(), value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['karma']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['karma'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
-	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['title'].title(), value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['friendship']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['friendship'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['title'].title(), value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['messages']['desc'].format(sum(profile_data[ctx.guild.id][user_id]['messages'])), inline = True)
 	embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['title'], value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
+	embed.add_field(name = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['title'].title(), value = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['vc_hours']['desc'].format(fsum(profile_data[ctx.guild.id][user_id]['vc_time'])), inline = True)
 	
 	await ctx.send(embed = embed)
 
@@ -336,7 +339,7 @@ async def playlist(ctx, *, playlist = None):
 	print(playlists[ctx.guild.id])
 	if (playlist in playlists[ctx.guild.id]):
 		embed = discord.Embed(title = playlists[ctx.guild.id][playlist]["title"], description = playlists[ctx.guild.id][playlist]["desc"], color = snoo_color)
-		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['playlist'].upper()}", icon_url=music_icon)
+		embed.set_author(name = title_format.format(language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['playlist'].title()), icon_url=music_icon)
 		embed.set_thumbnail(url = playlists[ctx.guild.id][playlist]["cover"])
 		for song in playlists[ctx.guild.id][playlist]["songs"]:
 			embed.add_field(name = video_info[song]["title"], value = video_info[song]["channel_name"], inline = True)
@@ -556,7 +559,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 	playlist = None
 	searching_msg = None
 	id = None
-	searching = f'{language[server_config[guild.id]["lang_set"]]["notifs"]["searching"]} {loading_icon}'
+	searching = f'{language[server_config[guild.id]["lang_set"]]["notifs"]["searching"]}   {loading_icon}'
 
 	if (autoplay == None):
 		if (guild.id not in playlists or "liked" not in playlists[guild.id]):
@@ -680,7 +683,7 @@ async def queued_embed(channel, playlist):
 	total_time = 0
 
 	embed = discord.Embed(color = snoo_color)
-	embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
+	embed.set_author(name = title_format.format(f"{language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].title()} {0} / {len(playlist)}"), icon_url = music_icon)
 	embed_msg = await channel.send(embed = embed)
 
 	while (i < len(playlist)):
@@ -690,7 +693,7 @@ async def queued_embed(channel, playlist):
 			if (i == 0):
 				color0 = discord.Color.from_rgb(video_info[playlist[0]]["palette"][0][0], video_info[playlist[0]]["palette"][0][1], video_info[playlist[0]]["palette"][0][2])
 				embed = discord.Embed(color = color0)
-				embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {0} / {len(playlist)}", icon_url = music_icon)
+				embed.set_author(name = title_format.format(f"{language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].title()} {0} / {len(playlist)}"), icon_url = music_icon)
 				embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
 			if (i < 25):
 				embed.add_field(name = f'**{i + 1}** {video_info[playlist[i]]["title"]}', value = video_info[playlist[i]]["channel_name"], inline = False)
@@ -700,7 +703,7 @@ async def queued_embed(channel, playlist):
 			if (edit_needed):
 				if (i == 0):
 					embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-				embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()} {i + 1} / {len(playlist)}", icon_url = music_icon)
+				embed.set_author(name = title_format.format(f"{language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].title()} {0} / {len(playlist)} {i + 1} / {len(playlist)}"), icon_url = music_icon)
 				
 				await embed_msg.edit(embed = embed)
 				edit_needed = False
@@ -712,7 +715,7 @@ async def queued_embed(channel, playlist):
 			edit_needed = True
 
 	embed.set_thumbnail(url = video_info[playlist[0]]["thumbnail"])
-	embed.set_author(name = f"||  {language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	embed.set_author(name = title_format.format(language[server_config[channel.guild.id]['lang_set']]['ui']['title']['queued'].upper()), icon_url = music_icon)
 	if (len(playlist) < 25):
 		embed.set_footer(text = language[server_config[channel.guild.id]['lang_set']]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 	if (embed_msg == None):
@@ -727,45 +730,81 @@ def small_queued_embed(guild, id):
 	color0 = discord.Color.from_rgb(video_info[id]["palette"][0][0], video_info[id]["palette"][0][1], video_info[id]["palette"][0][2])
 	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})', color = color0)
 	embed.set_thumbnail(url = video_info[id]["thumbnail"])
-	embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['queued'].upper()}", icon_url = music_icon)
+	embed.set_author(name = title_format.format(language[server_config[guild]['lang_set']]['ui']['title']['queued'].title()), icon_url = music_icon)
 	return embed
+
+@snoo.command()
+async def nowplaying_bar_test(ctx):
+	playbar_length = 18
+	for i in range(10):
+		playbar = ""
+		for j in range(3):
+			percent = (i * 3 + j) / 29
+			playbar += nowplaying_bar(playbar_length, percent)
+			playbar += f" {round(percent * playbar_length, 2)} \n"
+		await ctx.send(playbar)
+
+def nowplaying_bar(playbar_length, percent):
+	playbar = ""
+	taken_up_fills = 1
+	taken_up_empty = 2
+
+	segments_present = percent * playbar_length
+	focus_snap_points = len(emojis["playbar"]["focus_bars"]["body"])
+	focus_bar_percent = floor((segments_present % 1) * 0.999 * focus_snap_points)
+
+	if (segments_present > 1 + 1 / focus_snap_points):
+		playbar += emojis["playbar"]["fills_and_caps"][0]
+		taken_up_fills += 1
+	
+	if (1 - 1 / focus_snap_points < segments_present < 1 + 1 / focus_snap_points):
+		if (segments_present < 1):
+			taken_up_empty += 1
+		else:
+			taken_up_fills += 1
+
+	if (1 - 1 / focus_snap_points < playbar_length - segments_present < 1 + 1 / focus_snap_points and playbar_length - segments_present < 1):
+		taken_up_fills += 1
+			
+
+	if (segments_present > 1 and playbar_length - segments_present > 1):
+		if (focus_bar_percent == 0):
+			taken_up_fills += 1
+		if (focus_bar_percent == focus_snap_points - 1):
+			taken_up_empty += 1
+
+	playbar += emojis["playbar"]["fills_and_caps"][2] * ceil(segments_present - taken_up_fills)
+
+	if (segments_present < 1):
+		playbar += emojis["playbar"]["focus_bars"]["cap_r"][focus_bar_percent]
+	elif (segments_present < 1 + 1 / focus_snap_points):
+		playbar += emojis["playbar"]["focus_bars"]["cap_r"][-1]
+
+	elif (percent >= 1):
+		playbar += emojis["playbar"]["focus_bars"]["cap_l"][-1]
+	elif (playbar_length - segments_present < 1):
+		playbar += emojis["playbar"]["focus_bars"]["cap_l"][focus_bar_percent]
+	elif (playbar_length - segments_present < 1 + 1 / focus_snap_points):
+		playbar += emojis["playbar"]["focus_bars"]["cap_l"][0]
+
+	else:
+		playbar += emojis["playbar"]["focus_bars"]["body"][focus_bar_percent]
+
+	playbar += emojis["playbar"]["fills_and_caps"][3] * ceil(playbar_length - segments_present - taken_up_empty)
+
+	if (playbar_length - segments_present > 1 + 1 / focus_snap_points):
+		playbar += emojis["playbar"]["fills_and_caps"][1]
+
+	return playbar
 
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
 
 	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
 	playing_for = format_time(time_since_start.seconds)
-	watch_prsnt = time_since_start.seconds * (100 / video_info[id]["secs_length"])
+	watch_percent = time_since_start.seconds / video_info[id]["secs_length"]
 
-	playbar = f'{playing_for}   '
-
-	"""playbar_length = 14
-	if (server_config[guild]["large nowplaying thumbnail"]):"""
-	playbar_length = 18
-
-	segments_prsnt = watch_prsnt * (playbar_length / 100)
-	fill_error = 0.5
-	empty_error = 0.5
-
-	if (segments_prsnt > 1):
-		playbar += emojis["bar1r"]
-		fill_error = 1.5
-	if (playbar_length - segments_prsnt > 1):
-		empty_error = 1.5
-	playbar += emojis["bar1"] * round(segments_prsnt - fill_error)
-	for i in range(5):
-		if (segments_prsnt % 1 < (i + 1) * 0.2):
-			if (segments_prsnt > 1 and playbar_length - segments_prsnt > 1):
-				playbar += emojis["bar2"][i]
-			elif (segments_prsnt < 1):
-				playbar += emojis["bar2rR"][i]
-			elif (playbar_length - segments_prsnt < 1):
-				playbar += emojis["bar2rL"][i]
-			break
-	playbar += emojis["bar3"] * (playbar_length - round(segments_prsnt + empty_error))
-	if (playbar_length - segments_prsnt > 1):
-		playbar += emojis["bar3r"]
-	playbar += f'   {format_time(video_info[id]["secs_length"])}'
+	playbar = f'{playing_for}   {nowplaying_bar(18, watch_percent)}   {format_time(video_info[id]["secs_length"])}'
 
 	publish_date = str(video_info[id]["publish_date"])
 	publish_date = datetime.datetime(int(publish_date[0:4]), int(publish_date[4:6]), int(publish_date[6:8]))
@@ -820,7 +859,7 @@ def nowplaying_embed(guild, id):
 
 	thumbnail_embed = discord.Embed(color = color0)
 	thumbnail_embed.set_image(url=video_info[id]["thumbnail"])
-	thumbnail_embed.set_author(name = f"||  {language[server_config[guild]['lang_set']]['ui']['title']['nowplaying'].upper()}", icon_url=music_icon)
+	thumbnail_embed.set_author(name = title_format.format(language[server_config[guild]['lang_set']]['ui']['title']['nowplaying'].title()), icon_url=music_icon)
 	embed = discord.Embed(title = video_info[id]["title"], url = 'http://www.youtube.com/watch?v=' + id, description = f'[{video_info[id]["channel_name"]}]({video_info[id]["channel_link"]})\n\n{playbar}', color=color1)
 	button_embed = discord.Embed(description = f"{views} {language[server_config[guild]['lang_set']]['ui']['field']['views']} - {time_ago}", color = color2)
 
@@ -853,11 +892,11 @@ def nowplaying_embed(guild, id):
 			durations += format_time(video_info[info[guild]["queue"][i]]["secs_length"]) + "\n"
 
 		if (songs != ""):
-			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["next_up"], value = songs, inline=True)
-			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["duration"], value = durations, inline=True)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["next_up"].title(), value = songs, inline=True)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["duration"].title(), value = durations, inline=True)
 
 		if (info[guild]["autoplay"] and info[guild]["recomended_vid"] != None):
-			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["autoplay"], value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["autoplay"].title(), value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
 
 		if (not early_break):
 			button_embed.set_footer(text = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
@@ -886,16 +925,17 @@ def nowplaying_embed(guild, id):
 	button.callback = skip_button
 	view.add_item(button)
 
-	button = Button(emoji = emojis["delete"])
-	button.callback = stop_button
-	view.add_item(button)
-
 	emoji = emojis["extend"]
 	if (info[guild]["show_queue"]):
 		emoji = emojis["collapse"]
 	button = Button(emoji = emoji)
 	button.callback = show_queue
 	view.add_item(button)
+
+	if (info[guild]["show_queue"]):
+		button = Button(emoji = emojis["delete"])
+		button.callback = stop_button
+		view.add_item(button)
 
 	return [embed, thumbnail_embed, view, button_embed]
 
@@ -979,58 +1019,58 @@ async def play_next(guild):
 		else:
 			song_history[guild][user][-1][current_url].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
 
-@snoo.command()
-async def queue(ctx):
-	verify_settings(ctx.guild.id)
-	if (info[ctx.guild.id]["voice"].is_playing()):
-		embed=discord.Embed(title = "", description = "", color=snoo_color)
-		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['queue'].upper()}", icon_url=music_icon)
+# @snoo.command()
+# async def queue(ctx):
+# 	verify_settings(ctx.guild.id)
+# 	if (info[ctx.guild.id]["voice"].is_playing()):
+# 		embed=discord.Embed(title = "", description = "", color=snoo_color)
+# 		embed.set_author(name = title_format.format(language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['queue'].upper()), icon_url=music_icon)
 		
-		songs = ""
-		durations = ""
-		early_break = False
-		#channels = ""
-		total_time = 0
-		for video in info[ctx.guild.id]["queue"]:
-			total_time += video_info[video]["secs_length"]
+# 		songs = ""
+# 		durations = ""
+# 		early_break = False
+# 		#channels = ""
+# 		total_time = 0
+# 		for video in info[ctx.guild.id]["queue"]:
+# 			total_time += video_info[video]["secs_length"]
 
-		for i in range(len(info[ctx.guild.id]["queue"])):
-			if (i == 0):
-				embed.add_field(name = f'<a:MusicBars:917119951603646505> {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
-				embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-				embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
-				embed.set_thumbnail(url=video_info[info[ctx.guild.id]["queue"][i]]["thumbnail"])
-			else:
-				#embed.add_field(name = f'{i} {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
-				#embed.add_field(name = '\u200b', value = '\u200b', inline = True)
-				#embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
+# 		for i in range(len(info[ctx.guild.id]["queue"])):
+# 			if (i == 0):
+# 				embed.add_field(name = f'<a:MusicBars:917119951603646505> {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
+# 				embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+# 				embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
+# 				embed.set_thumbnail(url=video_info[info[ctx.guild.id]["queue"][i]]["thumbnail"])
+# 			else:
+# 				#embed.add_field(name = f'{i} {video_info[info[ctx.guild.id]["queue"][i]]["title"]}', value = video_info[info[ctx.guild.id]["queue"][i]]["channel_name"], inline = True)
+# 				#embed.add_field(name = '\u200b', value = '\u200b', inline = True)
+# 				#embed.add_field(name = format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]), value = '\u200b', inline = True)
 
-				chr_per_row = 40
-				if (len(songs) < 1024 - chr_per_row):
-					songs += f"**{i}** " + video_info[info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
-					if (len(video_info[info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
-						songs += "...\n"
-					else:
-						songs += "\n"
-				else: 
-					early_break = True
-					embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
-					break
+# 				chr_per_row = 40
+# 				if (len(songs) < 1024 - chr_per_row):
+# 					songs += f"**{i}** " + video_info[info[ctx.guild.id]["queue"][i]]["title"][0 : chr_per_row]
+# 					if (len(video_info[info[ctx.guild.id]["queue"][i]]["title"]) > chr_per_row):
+# 						songs += "...\n"
+# 					else:
+# 						songs += "\n"
+# 				else: 
+# 					early_break = True
+# 					embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["full"].format(len(info[ctx.guild.id]["queue"]) - i, format_time(total_time)))
+# 					break
 
-				#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
-				durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
+# 				#channels += video_info[info["queue"][i]]["channel_name"] + "\n"
+# 				durations += format_time(video_info[info[ctx.guild.id]["queue"][i]]["secs_length"]) + "\n"
 
-		if (songs != ""):
-			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["next_up"], value = songs, inline=True)
-			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["duration"], value = durations, inline=True)
+# 		if (songs != ""):
+# 			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["next_up"], value = songs, inline=True)
+# 			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["duration"], value = durations, inline=True)
 
-		if (info[ctx.guild.id]["autoplay"]):
-			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["autoplay"], value = video_info[info[ctx.guild.id]["recomended_vid"]]["title"], inline = False)
+# 		if (info[ctx.guild.id]["autoplay"]):
+# 			embed.add_field(name = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["autoplay"], value = video_info[info[ctx.guild.id]["recomended_vid"]]["title"], inline = False)
 
-		if (not early_break):
-			embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
+# 		if (not early_break):
+# 			embed.set_footer(text = language[server_config[ctx.guild.id]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
 		
-		await ctx.send(embed=embed)
+# 		await ctx.send(embed=embed)
 
 async def show_queue(interaction):
 	if (info[interaction.guild.id]["show_queue"]):
@@ -1051,8 +1091,8 @@ async def stop(ctx):
 		await info[ctx.guild.id]["voice"].disconnect()
 		info.pop(ctx.guild.id)
 
-		embed=discord.Embed(title = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['stopped'], description = f"", color=snoo_color)
-		embed.set_author(name = f"||  {language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[ctx.guild.id]['lang_set']]['ui']['field']['stopped'].title(), description = f"", color=snoo_color)
+		embed.set_author(name = title_format.format(language[server_config[ctx.guild.id]['lang_set']]['ui']['title']['stopped'].title()), icon_url=music_icon)
 		await ctx.send(embed = embed)
 
 async def stop_button(interaction):
@@ -1064,8 +1104,8 @@ async def stop_button(interaction):
 		await info[interaction.guild.id]["voice"].disconnect()
 		info.pop(interaction.guild.id)
 
-		embed=discord.Embed(title = language[server_config[interaction.guild.id]['lang_set']]['ui']['field']['stopped'], description = f"", color=snoo_color)
-		embed.set_author(name = f"||  {language[server_config[interaction.guild.id]['lang_set']]['ui']['title']['stopped'].upper()}", icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[interaction.guild.id]['lang_set']]['ui']['field']['stopped'].title(), description = f"", color=snoo_color)
+		embed.set_author(name = title_format.format(language[server_config[interaction.guild.id]['lang_set']]['ui']['title']['stopped'].title()), icon_url=music_icon)
 		await interaction.response.send_message(embed = embed)
 
 @snoo.command()
@@ -1182,8 +1222,8 @@ async def check_if_song_ended(guild):
 		await info[guild]["voice"].disconnect()
 		info[guild]["task"].cancel()
 
-		embed=discord.Embed(title = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_end"], description = "", color=snoo_color)
-		embed.set_author(name = f'||  {language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].upper()}', icon_url=music_icon)
+		embed=discord.Embed(title = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_end"].title(), description = "", color=snoo_color)
+		embed.set_author(name = title_format.format(language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].title()), icon_url=music_icon)
 		await info[guild]["channel"].send(embed=embed)
 
 		info[guild]["queue"].clear()

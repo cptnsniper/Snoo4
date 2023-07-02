@@ -8,6 +8,11 @@
             "large nowplaying thumbnail": "sets the nowplaying thumbnail to the larger, two-message style",
             "language": "the language that Snoo speaks"
         },
+        "setting_names": {
+            "language": "language",
+            "votes": "likes",
+            "downvote": "dislike"
+        },
         "error": {
             "setting_not_found": "setting not found!",
             "age_restricted": "sorry, but I'm not allowed to play 18+ content since I'm only 2 years old!",
@@ -102,7 +107,6 @@
                     "million": "M",
                     "billion": "B"
                 },
-                "language": "language",
                 "select_language": "switch languages"
             }
         }
@@ -111,8 +115,13 @@
         "flag": "🇷🇺",
         "settings_info": {
             "votes": "решения, ставить ли Сну лайки на посты",
-            "downvote": "решения, ставить ли Сну отрицательный лайки на посты",
+            "downvote": "решения, ставить ли Сну дизлайки на посты",
             "language": "язык на котором разговаривают Сну"
+        },
+        "setting_names": {
+            "language": "язык",
+            "votes": "лайки",
+            "downvote": "дизлайк"
         },
         "error": {
             "setting_not_found": "настройка не найдена!",
@@ -208,7 +217,6 @@
                     "million": " млн",
                     "billion": " млн"
                 },
-                "language": "язык",
                 "select_language": "поменайт язык"
             }
         }
@@ -283,6 +291,11 @@
             "votes": "スヌーがポストに「いいね！」と「よくないね」が追加するかどうかを選ぶ",
             "downvote": "スヌーがポストに「よくないね」が追加するかどうかを選ぶ",
             "language": "スヌーが喋る言語"
+        },
+        "setting_names": {
+            "language": "言語",
+            "votes": "いいね！",
+            "downvote": "よくないね"
         },
         "error": {
             "setting_not_found": "この設定が見つけないんだ！",
@@ -378,7 +391,6 @@
                     "million": "M",
                     "billion": "B"
                 },
-                "language": "言語",
                 "select_language": "言語を変える"
             }
         }

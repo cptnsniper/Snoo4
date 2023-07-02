@@ -25,15 +25,16 @@ default_info = {
 	"show_queue": False
 }
 
-admin_command_message = "you need to be my master to use this command!"
-snoo_color = 0xe0917a
+admin_command_message = "you are not allowed to use this command!"
+snoo_color = 0xfab384
 snoo_rgb = (224, 145, 122)
-version = "0.4.37 (language settings)"
+version = "0.4.38 (ui)"
 test_server = 905495146890666005
 test_channel = 1046466554310701116
 admin = 401442600931950592
 # lang_set = "English"
 lang_completion = {"English": 100}
+title_format = "{}"
 
 default_settings = {"lang_set": "English", "votes": True, "downvote": False}
 settings_info = {
@@ -45,37 +46,37 @@ settings_info = {
 }
 
 emojis = {
-	"upvote": "<:upvote:1076600305149546656>",
-	"downvote": "<:downvote:1076600815004958770>",
+	"upvote": "<:Upvote:1124508818924118016>",
+	"downvote": "<:Downvote:1124508816692756661>",
 	"numbers": ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"],
 	"cross": "<:cross:905498493840400475>",
 	"check": "<:check:905498494222098543>",
-	"on": "<:on1:985591109998759986><:on2:985591107524104324>",
-	"off": "<:off1:985591110799884309><:off2:985591108929208320>",
+	"on": "<:on1:1124488396337860638><:on2:1124488399005433886>",
+	"off": "<:off1:1124489547150000241><:off2:1124489549586903060>",
 	"poll": ["<:A_:908477372397920316>", "<:B_:908477372637011968>", "<:C_:908477373090000916>", "<:D_:908477372607639572>", "<:E_:908477372561506324>", "<:F_:908477372511170620>", "<:G_:908477372829949952>"],
-	"bar1": "<:bar1:994058965279322144>",
-	"bar2": ["<:bar31:994069492026048713>", "<:bar21:994063956178124882>", "<:bar2:994058964918616074>", "<:bar22:994063957117632572>", "<:bar12:994069492953010196>"],
-	"bar3": "<:bar3:994058963509334018>",
-	"bar1r": "<:bar1R:995467490052280320>",
-	"bar2rR": ["<:bar31:994069492026048713>", "<:bar21r:995476810194223135>", "<:bar2r:995476813495152690>", "<:bar22r:995476811637067836>", "<:bar12r:995476812173942816>"],
-	"bar2rL": ["<:bar31rr:995479103954239610>", "<:bar21rr:995479102066798612>", "<:bar2rr:995479104453361675>", "<:bar22rr:995479102976962695>", "<:bar12:994069492953010196>"],
-	"bar3r": "<:bar3R:995467514144378992>",
-    "not_like": "<:notLike:1089678409480798238>",
-    "like": "<:like:1089678407878586528>",
-    "delete": "<:delete:1089680730084347904>",
-    "extend": "<:extend:1089681184818217021>",
-    "collapse": "<:collapse:1089681183064985641>",
-    "back": "<:back:1035618514800754768>",
-    "skip": "<:skip:1035618493376254044>",
-    "pause": "<:pause:1035617459295764490>",
-    "play": "<:play:1035617460541460520>"
+    "playbar": {
+		"fills_and_caps": ["<:CapR:1124495141927911494>", "<:CapL:1124495139864334377>", "<:BodyR:1124498384619843615>", "<:BodyL:1124498381474107442>"],
+		"focus_bars": {
+			"cap_r": ["<:CapR1:1124498394614878330>", "<:CapR1:1124498394614878330>", "<:CapR2:1124498395575369728>", "<:CapR3:1124498687708631060>", "<:CapR4:1124731484947882026><:Center0:1124731486025814136>"],
+			"body": ["<:Center4:1124731487086981252><:Center0:1124731486025814136>", "<:Center1:1124498784605458463>", "<:Center2:1124498786115387512>", "<:Center3:1124498787893780582>", "<:Center4:1124731487086981252><:Center0:1124731486025814136>"],
+			"cap_l": ["<:Center4:1124731487086981252><:CapL0:1124731482947203154>", "<:CapL1:1124498388503777360>", "<:CapL2:1124498389887881216>", "<:CapL3:1124498390982594650>", "<:CapL3:1124498390982594650>"]
+		},
+	},
+    "not_like": "<:NotLike:1125142767459389440>",
+    "like": "<:Upvote:1124508818924118016>",
+    "delete": "<:Trash:1125151486062628894>",
+    "extend": "<:MenuUp:1125147518087483392>",
+    "collapse": "<:MenuDown:1125147515835142215>",
+    "back": "<:Back:1125143134976880740>",
+    "skip": "<:Skip:1125143137355051068>",
+    "pause": "<:Pause:1125136351063453756>",
+    "play": "<:Play:1125136354028814366>"
 }
 
 new_playlist = {"title": "new playlist", "desc": "", "cover": "https://cdn.discordapp.com/attachments/908157040155832350/999112912352333854/snoo_cover.png", "songs": []}
 
-loading_icon = "<a:loading:977336498322030612>"
-poll_icon = "https://media.discordapp.net/attachments/908157040155832350/930606118512779364/poll.png"
-music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/930609037807087616/snoo_music_icon.png"
-profile_icon = "https://media.discordapp.net/attachments/908157040155832350/931732724203520000/profile.png"
-award_icon = "https://cdn.discordapp.com/attachments/908157040155832350/958841770765066280/award_icon.png"
-settings_icon = "https://cdn.discordapp.com/attachments/908157040155832350/985595253174190080/snoo_icon.png"
+loading_icon = "<a:Loading2:1124429339778351155>"
+poll_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124407360471961700/Poll.png"
+music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124407819916025947/Music.png"
+profile_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124408205032833034/Profile.png"
+settings_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124406499230367914/Settings.png"
