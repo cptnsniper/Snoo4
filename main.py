@@ -24,7 +24,7 @@ from plotly.express import line as px_line
 from difflib import SequenceMatcher 
 from copy import deepcopy
 from random import shuffle
-from pytube import Playlist
+from pytube import YouTube, Playlist
 from validators import url
 import queue
 from logging import FileHandler
@@ -376,17 +376,27 @@ def find_videos_playlist(playlist_url):
 
 def thumbnail_palette(thumbnail, discriminator = ""):
 	urlretrieve(thumbnail, f"Cache\img{discriminator}.png")
+
 	output_width = 300
 	img = Image.open(f"Cache\img{discriminator}.png")
 	wpercent = (output_width/float(img.size[0]))
 	hsize = int((float(img.size[1])*float(wpercent)))
 	img = img.resize((output_width,hsize), Image.Resampling.LANCZOS)
 	img.save(f"Cache\img{discriminator}.png")
+
 	color_pallet = extract_from_path(f"Cache\img{discriminator}.png", tolerance = 16, limit = 3)
 	return (color_pallet[0][0][0], color_pallet[0][1][0], color_pallet[0][2][0])
 
-def find_video_info(id, only_source = False, only_rec = False, discriminator = ""):
+def find_video_info(id, only_source = False, only_rec = False, refetch = False, discriminator = ""):
+	if (id in video_info and not refetch and not only_source and not only_rec):
+		cache_date = datetime.datetime(int(video_info[id]["info"]["cache_date"][0:4]), int(video_info[id]["info"]["cache_date"][4:6]), int(video_info[id]["info"]["cache_date"][6:8]))
+		time_delta = datetime.datetime.now() - cache_date
+		if (time_delta.days < 14 and not video_info[id]["info"]["failed_autoplay"] and not video_info[id]["info"]["failed_thumbnail"] and not video_info[id]["info"]["failed_palette"]):
+			return True
+		
 	print("finding info for: " + id)
+	print("------")
+
 	if (not only_rec):
 		YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
 		with YoutubeDL(YDL_OPTIONS) as ydl:
@@ -395,39 +405,113 @@ def find_video_info(id, only_source = False, only_rec = False, discriminator = "
 			except:
 				print("failed to fetch video info for: ", id)
 				return False
+			
+		print("#-----")
+		
+		try:
+			yt = YouTube('https://www.youtube.com/watch?v=' + id)
+		except Exception as e:
+			print(f"failed to fetch video info for {id}: {e}")
+			return False
+		
+		print("##----")
+		
+		audio_url = vid["url"]
+		if (not valid_url(audio_url)):
+			audio_stream = yt.streams.filter(only_audio=True, file_extension='mp4', abr='128kbps').first()
+			audio_url = audio_stream.url
 
-		#id = vid["id"]
+		print("###---")
+
 		if (only_source):
-			sources[id] = vid["url"]
+			video_info[id]["source"] = audio_url
 			return True
 
 		video_info_temp = {}
-		sources[id] = vid["url"]
-		video_info_temp["title"] = vid["title"]
+		video_info_temp["source"] = audio_url
+
+		"""video_info_temp["title"] = vid["title"]
 		video_info_temp["views"] = vid["view_count"]
 		video_info_temp["secs_length"] = vid["duration"]
 		video_info_temp["publish_date"] = vid["upload_date"]
 		video_info_temp["channel_link"] = vid["channel_url"]
-		video_info_temp["channel_name"] = vid["uploader"]
+		video_info_temp["channel_name"] = vid["uploader"]"""
 
-		attempt_i = -1
-		while (True):
-			video_info_temp["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
-			if (valid_url(video_info_temp["thumbnail"])):
-				break
-			attempt_i -= 1
+		video_info_temp["title"] = yt.title
+		video_info_temp["views"] = yt.views
+		video_info_temp["secs_length"] = yt.length
+		video_info_temp["publish_date"] = yt.publish_date.strftime("%Y%m%d")
+		video_info_temp["channel_link"] = yt.channel_url
+		video_info_temp["channel_name"] = yt.author
+
+		failed_thumbnail = False
+		failed_palette = False
+		thumbnail = yt.thumbnail_url
 		
-		# video_info[id]["palette"] = (snoo_rgb, snoo_rgb, snoo_rgb)
+		if (valid_url(thumbnail)):
+			video_info_temp["thumbnail"] = thumbnail
+		else:
+			failed_thumbnail = True
+			video_info_temp["thumbnail"] = thumbnail_error
+			print("failed to find a useable thumbnail for: " + id)
+
+		print("####--")
+
+		# try:
+		# 	attempt_i = -1
+			
+		# 	while (True):
+		# 		video_info_temp["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
+		# 		if (valid_url(video_info_temp["thumbnail"])):
+		# 			break
+		# 		attempt_i -= 1
+		# except:
+		# 	failed_thumbnail = True
+		# 	video_info_temp["thumbnail"] = thumbnail_error
+		# 	print("failed to find a useable thumbnail for: " + id)
+		
 		# Thread(target = thumbnail_palette, args = (id, )).start()
-		video_info_temp["palette"] = thumbnail_palette(video_info_temp["thumbnail"], discriminator)
+		
+		try:
+			if (failed_thumbnail):
+				raise Exception("can't make a palette for a broken thumbnail")
+
+			video_info_temp["palette"] = thumbnail_palette(video_info_temp["thumbnail"], discriminator)
+		except:
+			failed_palette = True
+			video_info_temp["palette"] = default_palette
+			if (not failed_thumbnail):
+				print("failed to make a palette for: " + id)
+
+		print("#####-")
 
 		video_info[id] = video_info_temp
+		video_info[id]["info"] = {}
+		video_info[id]["info"]["cache_date"] = datetime.datetime.now().strftime("%Y%m%d")
+		video_info[id]["info"]["failed_thumbnail"] = failed_thumbnail
+		video_info[id]["info"]["failed_palette"] = failed_palette
+		video_info[id]["info"]["failed_autoplay"] = False
 
+		print("######")
+
+		# video_info_temp["source"] = vid["url"]
+		# start = 'videoplayback?expire='
+		# end = '&ei='
+		# st = video_info_temp["source"].find(start) + len(start)
+		# en = video_info_temp["source"].find(end)
+		# expire_num = int(video_info_temp["source"][st:en])
+
+		# video_info[id]["info"]["source_expire_date"] = datetime.timedelta(seconds = expire_num - int(datetime.datetime.now().timestamp()))
+		# date = datetime.datetime(int(video_info[id]["info"]["source_expire_date"][0:4]), int(video_info[id]["info"]["source_expire_date"][4:6]), int(video_info[id]["info"]["source_expire_date"][6:8]))
+		# print(video_info[id]["info"]["source_expire_date"])
+
+	failed_autoplay = False
 	try:
 		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
 		resp = r_get('http://www.youtube.com/watch?v=' + id, headers=headers)
 		soup = bs(resp.text,'html.parser')
 		str_soup = str(soup.findAll('script'))
+		str_json(str_soup)
 
 		start = ',"secondaryResults":{"secondaryResults":'
 		end = '},"autoplay":{"autoplay":'
@@ -443,7 +527,10 @@ def find_video_info(id, only_source = False, only_rec = False, discriminator = "
 			elif ("hour" not in secondary_results["results"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
 				video_info[id]["recomended_vids"].append(secondary_results["results"][i]["compactVideoRenderer"]["videoId"])
 	except:
+		failed_autoplay = True
 		print("failed to find recomended vid for: " + id)
+	
+	video_info[id]["info"]["failed_autoplay"] = failed_autoplay
 
 	return True
 
@@ -465,8 +552,6 @@ def search_and_find_info(search, discriminator = ""):
 	else:
 		result = search
 	
-	if (result not in video_info):
-		print("new video: " + result)
 		if (not find_video_info(result, discriminator = discriminator)):
 			return None
 	
@@ -546,8 +631,12 @@ def search_to_playlist(search):
 @snoo.tree.context_menu(name = "play")#, guild = discord.Object(id = test_server))
 async def play_menu(interaction: discord.Interaction, message: discord.Message):
 	await interaction.response.defer(ephemeral = True)
-	await play_sys(interaction.guild, interaction.channel, message, interaction.user)
-	await interaction.followup.send("interaction successful")
+	try:
+		await play_sys(interaction.guild, interaction.channel, message, interaction.user)
+		await interaction.followup.send("interaction successful")
+	except Exception as e:
+		await interaction.followup.send("sorry, something went wrong")
+		raise e
 
 @snoo.command()
 async def play(ctx, *, search = None):
@@ -600,14 +689,12 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 		id = autoplay
 
 	if (not skip_search):
-		found_info = True
-		if (id not in video_info):
-			found_info = find_video_info(id)
+		found_info = find_video_info(id)
 
 		print("playing: " + id)
-		if (id not in sources or not valid_url(sources[id])):
-			print("url expired")
-			found_info = find_video_info(id, True)
+		# if (not valid_url(video_info[id]["source"])):
+		# 	print("url expired")
+		# 	found_info = find_video_info(id, only_source = True)
 
 		if (not found_info):
 			if (searching_msg != None):
@@ -647,7 +734,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 			await play_url(guild.id, id)
 
 		# Thread(target = find_autoplay, args = (guild.id, id, )).start()
-		find_autoplay(guild.id, id, )
+		find_autoplay(guild.id, id)
 
 	if (playlist != None and len(playlist) > 0):
 		Thread(target = thread_find_playlist, args = (playlist, )).start()
@@ -659,7 +746,7 @@ async def play_url(guild, id):
 
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
-	info[guild]["voice"].play(FFmpegPCMAudio(source = sources[id], **FFMPEG_OPTIONS))
+	info[guild]["voice"].play(FFmpegPCMAudio(source = video_info[id]["source"], **FFMPEG_OPTIONS))
 	info[guild]["voice"].is_playing()
 	info[guild]["start_time"] = datetime.datetime.now()
 
@@ -669,9 +756,8 @@ def find_autoplay(guild, id):
 
 	for vid in video_info[id]["recomended_vids"]:
 		if (vid not in info[guild]["past queue"]):
-			if (vid not in video_info):
-				if (not find_video_info(vid)):
-					continue
+			if (not find_video_info(vid)):
+				continue
 			info[guild]["recomended_vid"] = vid
 			print("autoplay: " + vid)
 			break
@@ -829,14 +915,14 @@ def nowplaying_embed(guild, id):
 				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['day']['singular']
 			else:
 				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['day']['plural'].format(days)
-		elif (publish_date_delta.hours > 0):
-			hours = publish_date_delta.hours
+		elif (floor(publish_date_delta / datetime.timedelta(hours = 1)) > 0):
+			hours = floor(publish_date_delta / datetime.timedelta(hours = 1))
 			if (hours == 1):
 				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['hours']['singular']
 			else:
 				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['hour']['plural'].format(hours)
 		else:
-			minutes = publish_date_delta.hours
+			minutes = floor(publish_date_delta / datetime.timedelta(minutes = 1))
 			if (minutes == 1):
 				time_ago = language[server_config[guild]["lang_set"]]['ui']['field']['time_delta']['minute']['singular']
 			elif (minutes < 1):
@@ -969,8 +1055,12 @@ async def update_nowplaying(guild):
 
 			elif (not await check_if_song_ended(guild)):
 				print("refetching video info...")
-				find_video_info(info[guild]["queue"][0])
-				await play_url(guild, info[guild]["queue"][0])
+				try:
+					find_video_info(info[guild]["queue"][0], only_source = True)
+					await play_url(guild, info[guild]["queue"][0])
+					print("refetching was successful")
+				except Exception as e:
+					print(repr(e))
 
 		info[guild]["nowplaying_edits"] += 1
 		if (info[guild]["nowplaying_edits"] > 300):
@@ -986,8 +1076,9 @@ async def update_nowplaying(guild):
 			await info[guild]["button_holder"].delete()
 			info[guild]["button_holder"] = await info[guild]["channel"].send(embed = embeds[3], view = embeds[2])
 
-	except:
+	except Exception as e:
 		print("update failed")
+		print(repr(e))
 
 async def play_next(guild):
 	current_url = info[guild]["queue"][0]

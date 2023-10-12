@@ -10,7 +10,7 @@ playlists = defaultdict(dict)
 language = defaultdict(dict)
 missing_translations = defaultdict(dict)
 video_info = defaultdict(dict)
-sources = {}
+# sources = {}
 info = {}
 default_info = {
 	"channel": None,
@@ -27,8 +27,8 @@ default_info = {
 
 admin_command_message = "you are not allowed to use this command!"
 snoo_color = 0xfab384
-snoo_rgb = (224, 145, 122)
-version = "0.4.38 (ui)"
+default_palette = ((255, 218, 174), (250, 179, 132), (207, 112, 91))
+version = "0.4.38 (music stability)"
 test_server = 905495146890666005
 test_channel = 1046466554310701116
 admin = 401442600931950592
@@ -80,3 +80,4 @@ poll_icon = "https://cdn.discordapp.com/attachments/908157040155832350/112440736
 music_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124407819916025947/Music.png"
 profile_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124408205032833034/Profile.png"
 settings_icon = "https://cdn.discordapp.com/attachments/908157040155832350/1124406499230367914/Settings.png"
+thumbnail_error = "https://cdn.discordapp.com/attachments/908157040155832350/1137151667826073731/Snoo_Thumbnail_Error.png"
