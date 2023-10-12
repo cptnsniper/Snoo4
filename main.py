@@ -48,7 +48,7 @@ async def on_ready():
 	await snoo.tree.sync()#guild = discord.Object(test_server))
 	# snoo.tree.clear_commands(guild=None)
 	# await snoo.tree.sync()
-	await snoo.change_presence(activity = discord.Activity(type = discord.ActivityType.playing, name = "music for my friends!"))
+	await snoo.change_presence(activity = discord.Activity(type = discord.ActivityType.playing, name = "music (possibly)"))
 
 	await initialize_data()
 	verify_lang()
