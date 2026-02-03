@@ -1,12 +1,12 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.utils import get
 from discord import FFmpegPCMAudio
 from discord.ui import Select, Button, View
 import os
 import json
 import datetime
-from threading import Thread, Timer
+from threading import Thread
 import asyncio
 from math import fsum, floor, ceil
 from pandas import DataFrame
@@ -34,7 +34,19 @@ import sys
 
 from System.system import *
 
-intents = discord.Intents.all()
+import shutil
+if shutil.which("ffmpeg") is None:
+	print("CRITICAL ERROR: ffmpeg was not found in your system PATH. Music will not work.")
+else:
+	print(f"FFmpeg found at: {shutil.which('ffmpeg')}")
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+intents.guilds = True
+intents.reactions = True
+intents.voice_states = True
+
 snoo = commands.Bot(command_prefix = prefix, intents = intents)
 
 if (not os.path.isdir('Data Files')):
@@ -56,6 +68,9 @@ async def on_ready():
 	str_json(missing_translations)
 	#await channel.send(file=discord.File('Cache/string.json'))
 	asyncio.create_task(async_timer(60 * 6, new_save)) #PLEASE FUTURE ME REMMEBER TO UNCOMMENT!!!!!!!!!
+
+	if not daily_entry_check.is_running():
+		daily_entry_check.start()
 
 	channel = snoo.get_channel(test_channel)
 	await channel.send(f"running version: {version} on {gethostname()}")
@@ -92,57 +107,67 @@ async def on_command_error(ctx, error):
 # _________________________________________________________________ ON MESSAGE _________________________________________________________________
 
 @snoo.event
-async def on_message(message):
-	if (message.guild == None):
+async def on_message(message: discord.Message):
+	# Ignore DMs
+	if message.guild is None:
 		return
 
-	if (message.guild.id not in channel_messages) or (message.channel.id not in channel_messages[message.guild.id]):
+	# Ensure guild + channel dicts exist
+	if message.guild.id not in channel_messages:
+		channel_messages[message.guild.id] = {}
+
+	if message.channel.id not in channel_messages[message.guild.id]:
 		channel_messages[message.guild.id][message.channel.id] = [1]
 	else:
 		channel_messages[message.guild.id][message.channel.id][-1] += 1
 
+	# Track profile data
 	verify_data(message.guild.id, message.author.id)
 	profile_data[message.guild.id][message.author.id]["messages"][-1] += 1
 
-	if (message.author == snoo.user):
+	# Ignore self
+	if message.author == snoo.user:
 		return
 
 	verify_settings(message.guild.id)
 
-	if (server_config[message.guild.id]["votes"]):
-		if (message.attachments or len(find_url(message.content)) > 0 or '*image*' in message.content.lower()):
+	# Voting / image reactions
+	if server_config[message.guild.id]["votes"]:
+		if message.attachments or len(find_url(message.content)) > 0 or '*image*' in message.content.lower():
 			upvote = None
 			downvote = None
 
 			for emoji in message.channel.guild.emojis:
-				if (emoji.name.lower() == "upvote"):
+				if emoji.name.lower() == "upvote":
 					upvote = emoji
-					if (not server_config[message.guild.id]["downvote"]):
+					if not server_config[message.guild.id]["downvote"]:
 						break
-				if (emoji.name.lower() == "downvote"):
+				if emoji.name.lower() == "downvote":
 					downvote = emoji
-				if (upvote != None and downvote != None):
+				if upvote is not None and downvote is not None:
 					break
 
-			if (upvote == None):
+			if upvote is None:
 				await message.add_reaction(emojis["upvote"])
 			else:
 				await message.add_reaction(upvote)
-			if (server_config[message.guild.id]["downvote"]):
-				if (downvote == None):
+
+			if server_config[message.guild.id]["downvote"]:
+				if downvote is None:
 					await message.add_reaction(emojis["downvote"])
 				else:
 					await message.add_reaction(downvote)
 
-	if (message.content.lower().startswith('%')):
-		if ('scale' in message.content.lower()):
+	# %%scale reactions
+	if message.content.lower().startswith('%'):
+		if 'scale' in message.content.lower():
 			for num in emojis["numbers"]:
 				await message.add_reaction(num)
-		else:	
+		else:
 			await message.add_reaction(emojis["cross"])
 			await message.add_reaction(emojis["check"])
 
-	#commands
+	# Let commands still work
 	await snoo.process_commands(message)
 
 #upvote adding and taking away
@@ -375,164 +400,165 @@ def find_videos_playlist(playlist_url):
 	return playlist
 
 def thumbnail_palette(thumbnail, discriminator = ""):
-	urlretrieve(thumbnail, f"Cache\img{discriminator}.png")
+	img_path = os.path.join("Cache", f"img{discriminator}.png")
+
+	urlretrieve(thumbnail, img_path)
 
 	output_width = 300
-	img = Image.open(f"Cache\img{discriminator}.png")
+	img = Image.open(img_path)
 	wpercent = (output_width/float(img.size[0]))
 	hsize = int((float(img.size[1])*float(wpercent)))
-	img = img.resize((output_width,hsize), Image.Resampling.LANCZOS)
-	img.save(f"Cache\img{discriminator}.png")
+	img = img.resize((output_width, hsize), Image.Resampling.LANCZOS)
+	img.save(img_path)
 
-	color_pallet = extract_from_path(f"Cache\img{discriminator}.png", tolerance = 16, limit = 3)
+	color_pallet = extract_from_path(img_path, tolerance = 16, limit = 3)
 	return (color_pallet[0][0][0], color_pallet[0][1][0], color_pallet[0][2][0])
 
-def find_video_info(id, only_source = False, only_rec = False, refetch = False, discriminator = ""):
-	if (id in video_info and not refetch and not only_source and not only_rec):
-		cache_date = datetime.datetime(int(video_info[id]["info"]["cache_date"][0:4]), int(video_info[id]["info"]["cache_date"][4:6]), int(video_info[id]["info"]["cache_date"][6:8]))
-		time_delta = datetime.datetime.now() - cache_date
-		if (time_delta.days < 14 and not video_info[id]["info"]["failed_autoplay"] and not video_info[id]["info"]["failed_thumbnail"] and not video_info[id]["info"]["failed_palette"]):
-			return True
-		
-	print("finding info for: " + id)
-	print("------")
 
-	if (not only_rec):
-		YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': True, 'quiet': True}
-		with YoutubeDL(YDL_OPTIONS) as ydl:
+
+def find_video_info(id, only_source: bool = False, only_rec: bool = False, refetch: bool = False, discriminator: str = ""):
+	"""
+	Improved video info fetcher:
+	- Uses yt_dlp for metadata + primary audio URL
+	- Falls back to pytube for tricky videos whose streams break
+	- Avoids slow/blocking HTTP checks
+	"""
+	# Fast path: reuse cached info when not forcing refresh
+	if id in video_info and not (refetch or only_source or only_rec):
+		info_block = video_info[id].get("info", {})
+		cache_str = info_block.get("cache_date")
+		if cache_str and len(cache_str) == 8:
 			try:
-				vid = ydl.extract_info(id, download=False)
-			except:
-				print("failed to fetch video info for: ", id)
-				return False
-			
-		print("#-----")
-		
-		try:
-			yt = YouTube('https://www.youtube.com/watch?v=' + id)
-		except Exception as e:
-			print(f"failed to fetch video info for {id}: {e}")
-			return False
-		
-		print("##----")
-		
-		audio_url = vid["url"]
-		if (not valid_url(audio_url)):
-			audio_stream = yt.streams.filter(only_audio=True, file_extension='mp4', abr='128kbps').first()
-			audio_url = audio_stream.url
+				cache_date = datetime.datetime(
+					int(cache_str[0:4]),
+					int(cache_str[4:6]),
+					int(cache_str[6:8]),
+				)
+				time_delta = datetime.datetime.now() - cache_date
+				# Convert days to seconds + seconds to check if it's less than 4 hours (14400 seconds)
+				if time_delta.total_seconds() < 14400 and not info_block.get("failed_thumbnail") and not info_block.get("failed_palette"):
+					return True
+			except Exception:
+				# If cache parsing fails, just refetch.
+				pass
 
-		print("###---")
+	print(f"finding info for: {id}")
 
-		if (only_source):
-			video_info[id]["source"] = audio_url
-			return True
-
-		video_info_temp = {}
-		video_info_temp["source"] = audio_url
-
-		"""video_info_temp["title"] = vid["title"]
-		video_info_temp["views"] = vid["view_count"]
-		video_info_temp["secs_length"] = vid["duration"]
-		video_info_temp["publish_date"] = vid["upload_date"]
-		video_info_temp["channel_link"] = vid["channel_url"]
-		video_info_temp["channel_name"] = vid["uploader"]"""
-
-		video_info_temp["title"] = yt.title
-		video_info_temp["views"] = yt.views
-		video_info_temp["secs_length"] = yt.length
-		video_info_temp["publish_date"] = yt.publish_date.strftime("%Y%m%d")
-		video_info_temp["channel_link"] = yt.channel_url
-		video_info_temp["channel_name"] = yt.author
-
-		failed_thumbnail = False
-		failed_palette = False
-		thumbnail = yt.thumbnail_url
-		
-		if (valid_url(thumbnail)):
-			video_info_temp["thumbnail"] = thumbnail
-		else:
-			failed_thumbnail = True
-			video_info_temp["thumbnail"] = thumbnail_error
-			print("failed to find a useable thumbnail for: " + id)
-
-		print("####--")
-
-		# try:
-		# 	attempt_i = -1
-			
-		# 	while (True):
-		# 		video_info_temp["thumbnail"] = vid["thumbnails"][attempt_i]["url"]
-		# 		if (valid_url(video_info_temp["thumbnail"])):
-		# 			break
-		# 		attempt_i -= 1
-		# except:
-		# 	failed_thumbnail = True
-		# 	video_info_temp["thumbnail"] = thumbnail_error
-		# 	print("failed to find a useable thumbnail for: " + id)
-		
-		# Thread(target = thumbnail_palette, args = (id, )).start()
-		
-		try:
-			if (failed_thumbnail):
-				raise Exception("can't make a palette for a broken thumbnail")
-
-			video_info_temp["palette"] = thumbnail_palette(video_info_temp["thumbnail"], discriminator)
-		except:
-			failed_palette = True
-			video_info_temp["palette"] = default_palette
-			if (not failed_thumbnail):
-				print("failed to make a palette for: " + id)
-
-		print("#####-")
-
-		video_info[id] = video_info_temp
-		video_info[id]["info"] = {}
-		video_info[id]["info"]["cache_date"] = datetime.datetime.now().strftime("%Y%m%d")
-		video_info[id]["info"]["failed_thumbnail"] = failed_thumbnail
-		video_info[id]["info"]["failed_palette"] = failed_palette
-		video_info[id]["info"]["failed_autoplay"] = False
-
-		print("######")
-
-		# video_info_temp["source"] = vid["url"]
-		# start = 'videoplayback?expire='
-		# end = '&ei='
-		# st = video_info_temp["source"].find(start) + len(start)
-		# en = video_info_temp["source"].find(end)
-		# expire_num = int(video_info_temp["source"][st:en])
-
-		# video_info[id]["info"]["source_expire_date"] = datetime.timedelta(seconds = expire_num - int(datetime.datetime.now().timestamp()))
-		# date = datetime.datetime(int(video_info[id]["info"]["source_expire_date"][0:4]), int(video_info[id]["info"]["source_expire_date"][4:6]), int(video_info[id]["info"]["source_expire_date"][6:8]))
-		# print(video_info[id]["info"]["source_expire_date"])
-
-	failed_autoplay = False
+	YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True}
+	vid = None
 	try:
-		headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-		resp = r_get('http://www.youtube.com/watch?v=' + id, headers=headers)
-		soup = bs(resp.text,'html.parser')
-		str_soup = str(soup.findAll('script'))
-		str_json(str_soup)
+		with YoutubeDL(YDL_OPTIONS) as ydl:
+			vid = ydl.extract_info(id, download=False)
+	except Exception as e:
+		print(f"failed to fetch video info via yt_dlp for {id}: {e!r}")
 
-		start = ',"secondaryResults":{"secondaryResults":'
-		end = '},"autoplay":{"autoplay":'
-		st = str_soup.find(start) + len(start)
-		en = str_soup.find(end)
-		substring = str_soup[st:en]
-		secondary_results = json.loads(substring)
+	audio_url = None
 
-		video_info[id]["recomended_vids"] = []
-		for i in range(len(secondary_results["results"])):
-			if ("compactVideoRenderer" not in secondary_results["results"][i]):
-				continue
-			elif ("hour" not in secondary_results["results"][i]["compactVideoRenderer"]["title"]["simpleText"].lower()):
-				video_info[id]["recomended_vids"].append(secondary_results["results"][i]["compactVideoRenderer"]["videoId"])
-	except:
-		failed_autoplay = True
-		print("failed to find recomended vid for: " + id)
-	
-	video_info[id]["info"]["failed_autoplay"] = failed_autoplay
+	if vid:
+		# Primary audio URL from yt_dlp
+		audio_url = vid.get("url")
+		if not audio_url:
+			formats = vid.get("formats") or []
+			audio_candidates = [
+				f for f in formats
+				if f.get("acodec") not in (None, "none") and (f.get("vcodec") in (None, "none"))
+			]
+			if audio_candidates:
+				best = max(audio_candidates, key=lambda f: f.get("abr") or f.get("tbr") or 0)
+				audio_url = best.get("url")
+
+	# Fallback to pytube for stubborn videos or when yt_dlp didn't give us a clean URL
+	# if not audio_url or not url(str(audio_url)):
+	# 	try:
+	# 		from pytube import YouTube
+	# 		yt = YouTube(f'https://www.youtube.com/watch?v={id}')
+	# 		stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+	# 		if stream and stream.url:
+	# 			audio_url = stream.url
+	# 			print("pytube fallback succeeded for", id)
+	# 	except Exception as e:
+	# 		print(f"pytube fallback failed for {id}: {e!r}")
+
+	if not audio_url:
+		print(f"no usable audio URL for {id}")
+		return False
+
+	# If the caller only needs a refreshed source URL, update and return quickly.
+	if only_source and id in video_info:
+		video_info[id]["source"] = audio_url
+		return True
+
+	# If we only care about related videos, we can skip most metadata work
+	if only_rec and vid is None:
+		# Can't infer recommendations without a base info dict
+		return False
+
+	video_info_temp = {}
+	video_info_temp["source"] = audio_url
+
+	if vid is None:
+		# Minimal metadata if yt_dlp completely failed but pytube succeeded
+		video_info_temp["title"] = "Unknown title"
+		video_info_temp["views"] = 0
+		video_info_temp["secs_length"] = 0
+		video_info_temp["publish_date"] = datetime.datetime.now().strftime("%Y%m%d")
+		video_info_temp["channel_link"] = "https://www.youtube.com"
+		video_info_temp["channel_name"] = "Unknown channel"
+		thumb = None
+		related_ids = []
+	else:
+		video_info_temp["title"] = vid.get("title") or "Unknown title"
+		video_info_temp["views"] = vid.get("view_count", 0)
+		video_info_temp["secs_length"] = int(vid.get("duration") or 0)
+		video_info_temp["publish_date"] = vid.get("upload_date") or datetime.datetime.now().strftime("%Y%m%d")
+		video_info_temp["channel_link"] = vid.get("uploader_url") or vid.get("channel_url") or "https://www.youtube.com"
+		video_info_temp["channel_name"] = vid.get("uploader") or vid.get("channel") or "Unknown channel"
+		thumb = vid.get("thumbnail")
+		related_ids = vid.get("related_ids") or []
+
+	# Thumbnail & palette (trust yt_dlp / pytube, avoid HTTP probes here)
+	failed_thumbnail = False
+	failed_palette = False
+
+	if thumb:
+		video_info_temp["thumbnail"] = thumb
+	else:
+		failed_thumbnail = True
+		video_info_temp["thumbnail"] = thumbnail_error
+
+	try:
+		if failed_thumbnail:
+			raise Exception("no thumbnail to build palette from")
+		video_info_temp["palette"] = thumbnail_palette(video_info_temp["thumbnail"], discriminator)
+	except Exception:
+		failed_palette = True
+		video_info_temp["palette"] = default_palette
+
+	# Recommended videos / autoplay – best-effort only.
+	recomended_vids = []
+
+	for v in related_ids:
+		if isinstance(v, str):
+			recomended_vids.append(v)
+
+	# Some builds expose related_videos instead/also
+	if vid is not None and not recomended_vids and isinstance(vid.get("related_videos"), list):
+		for rel in vid["related_videos"]:
+			vid_id = rel.get("id") or rel.get("url")
+			if isinstance(vid_id, str):
+				recomended_vids.append(vid_id[-11:])
+
+	video_info_temp["recomended_vids"] = recomended_vids
+
+	video_info[id] = video_info_temp
+	video_info[id]["info"] = {}
+	video_info[id]["info"]["cache_date"] = datetime.datetime.now().strftime("%Y%m%d")
+	video_info[id]["info"]["failed_thumbnail"] = failed_thumbnail
+	video_info[id]["info"]["failed_palette"] = failed_palette
+	video_info[id]["info"]["failed_autoplay"] = False if recomended_vids else True
 
 	return True
+
 
 def search_yt(search):
 	query_string = urlencode({'search_query' : search})
@@ -692,9 +718,9 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 		found_info = find_video_info(id)
 
 		print("playing: " + id)
-		# if (not valid_url(video_info[id]["source"])):
-		# 	print("url expired")
-		# 	found_info = find_video_info(id, only_source = True)
+		if (not valid_url(video_info[id]["source"])):
+			print("url expired")
+			found_info = find_video_info(id, only_source = True)
 
 		if (not found_info):
 			if (searching_msg != None):
@@ -704,6 +730,7 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 			return		
 
 		info[guild.id]["queue"].append(id)
+		info[guild.id]["refetch_tried"] = False
 
 		if (autoplay == None):
 			if (len(info[guild.id]["queue"]) <= 1):
@@ -741,26 +768,89 @@ async def play_sys(guild = None, channel = None, reference = None, user = None, 
 		await queued_embed(channel, playlist)
 
 async def play_url(guild, id):
-	if (info[guild]["voice"].is_playing()):
-		info[guild]["voice"].stop()
+    # 1. Check if the voice client exists and is actually connected
+    if guild not in info or "voice" not in info[guild]:
+        print("Play URL failed: No voice client in info dict.")
+        return
 
-	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+    vc = info[guild]["voice"]
 
-	info[guild]["voice"].play(FFmpegPCMAudio(source = video_info[id]["source"], **FFMPEG_OPTIONS))
-	info[guild]["voice"].is_playing()
-	info[guild]["start_time"] = datetime.datetime.now()
+    # 2. If we are not connected, try to reconnect to the last known channel
+    if not vc.is_connected():
+        print("Voice client is disconnected. Attempting to reconnect...")
+        try:
+            # Try to grab the channel the bot *was* in
+            channel = vc.channel
+            # If the bot object doesn't know its channel, we can't rejoin
+            if channel:
+                # Cleanup the dead connection
+                try:
+                    await vc.disconnect(force=True)
+                except Exception:
+                    pass
+                
+                # Reconnect and update the info dict
+                new_vc = await channel.connect()
+                info[guild]["voice"] = new_vc
+                vc = new_vc
+                print("Reconnection successful.")
+            else:
+                print("Could not reconnect: Last channel is unknown.")
+                return
+        except Exception as e:
+            print(f"Failed to reconnect: {e}")
+            return
 
-def find_autoplay(guild, id):
-	if ("recomended_vids" not in video_info[id]):
-		find_video_info(id, only_rec = True)
+    # 3. Stop any currently playing audio
+    if vc.is_playing():
+        vc.stop()
 
-	for vid in video_info[id]["recomended_vids"]:
-		if (vid not in info[guild]["past queue"]):
-			if (not find_video_info(vid)):
-				continue
-			info[guild]["recomended_vid"] = vid
-			print("autoplay: " + vid)
-			break
+    # 4. Define FFMPEG options (Updated to be more robust)
+    FFMPEG_OPTIONS = {
+        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
+        'options': '-vn'
+    }
+
+    # 5. Play the audio with error logging
+    # Set the start time BEFORE trying to play. 
+    # This ensures the key exists even if FFMPEG crashes.
+    info[guild]["start_time"] = datetime.datetime.now() 
+
+    print(f"Attempting to play Source URL: {video_info[id]['source']}")
+    try:
+        source = FFmpegPCMAudio(
+            source=video_info[id]["source"], 
+            stderr=sys.stderr, 
+            **FFMPEG_OPTIONS
+        )
+        vc.play(source)
+        # info[guild]["start_time"] = datetime.datetime.now()  <-- REMOVE THIS LINE from here
+    except Exception as e:
+        print(f"CRITICAL FFMPEG ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # 6. Pre-fetch recommendations (Background Task)
+    if "recomended_vids" not in video_info[id]:
+        # Using a thread/task here avoids blocking the play function
+        asyncio.create_task(async_find_rec(id, guild))
+    else:
+        # If we already have recs, verify the next one works
+        verify_autoplay(guild, id)
+
+# Helper wrapper to avoid async errors in the main flow
+async def async_find_rec(id, guild):
+    find_video_info(id, only_rec=True)
+    verify_autoplay(guild, id)
+
+def verify_autoplay(guild, id):
+    for vid in video_info[id].get("recomended_vids", []):
+        if vid not in info[guild]["past queue"]:
+            if not find_video_info(vid):
+                continue
+            info[guild]["recomended_vid"] = vid
+            print("autoplay set to: " + vid)
+            break
 
 async def queued_embed(channel, playlist):
 	verify_settings(channel.guild.id)
@@ -810,6 +900,18 @@ async def queued_embed(channel, playlist):
 		await embed_msg.edit(embed = embed)
 
 	find_autoplay(embed_msg.guild.id, playlist[-1])
+
+def find_autoplay(guild, id):
+	if ("recomended_vids" not in video_info[id]):
+		find_video_info(id, only_rec = True)
+
+	for vid in video_info[id]["recomended_vids"]:
+		if (vid not in info[guild]["past queue"]):
+			if (not find_video_info(vid)):
+				continue
+			info[guild]["recomended_vid"] = vid
+			print("autoplay: " + vid)
+			break
 
 def small_queued_embed(guild, id):
 	verify_settings(guild)
@@ -886,7 +988,9 @@ def nowplaying_bar(playbar_length, percent):
 def nowplaying_embed(guild, id):
 	verify_settings(guild)
 
-	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+	# Safety check: Get start_time, default to NOW if missing
+	start_ts = info[guild].get("start_time", datetime.datetime.now())
+	time_since_start = datetime.datetime.now() - start_ts
 	playing_for = format_time(time_since_start.seconds)
 	watch_percent = time_since_start.seconds / video_info[id]["secs_length"]
 
@@ -954,15 +1058,24 @@ def nowplaying_embed(guild, id):
 		durations = ""
 		early_break = False
 		total_time = 0
+        
+        # Safely get the recommended video (defaults to None if missing)
+		rec_vid = info[guild].get("recomended_vid")
+
 		for video in info[guild]["queue"]:
 			total_time += video_info[video]["secs_length"]
-		if (info[guild]["recomended_vid"] != None):
-			total_time += video_info[info[guild]["recomended_vid"]]["secs_length"]
+        
+        # Use the safe variable we created above
+		if (rec_vid != None):
+			total_time += video_info[rec_vid]["secs_length"]
 
 		for i in range(len(info[guild]["queue"])):
 			if (i == 0):
 				continue
-
+            
+            # ... [keep your existing loop code for songs/durations] ...
+            # (Just copy/paste your existing formatting loop here if you are replacing the whole block)
+            # Shortened here for clarity:
 			chr_per_row = 40
 			if (len(songs) < 1024 - chr_per_row):
 				songs += f"**{i}** " + video_info[info[guild]["queue"][i]]["title"][0 : chr_per_row]
@@ -981,8 +1094,9 @@ def nowplaying_embed(guild, id):
 			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["next_up"].title(), value = songs, inline=True)
 			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["duration"].title(), value = durations, inline=True)
 
-		if (info[guild]["autoplay"] and info[guild]["recomended_vid"] != None):
-			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["autoplay"].title(), value = video_info[info[guild]["recomended_vid"]]["title"], inline = False)
+        # Update this check to use 'rec_vid' as well
+		if (info[guild]["autoplay"] and rec_vid != None):
+			button_embed.add_field(name = language[server_config[guild]["lang_set"]]["ui"]["field"]["autoplay"].title(), value = video_info[rec_vid]["title"], inline = False)
 
 		if (not early_break):
 			button_embed.set_footer(text = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_footer"]["short"].format(format_time(total_time)))
@@ -1044,7 +1158,8 @@ async def update_nowplaying(guild):
 
 		if (len(info[guild]["queue"]) > 0 and info[guild]["nowplaying_edits"] >= 0):
 
-			if (info[guild]["voice"].is_playing()):
+			voice_client = info[guild]["voice"]
+			if (voice_client and voice_client.is_playing()):
 				embeds = nowplaying_embed(guild, info[guild]["queue"][0])
 				await info[guild]["nowplaying"].edit(embed = embeds[0])
 
@@ -1053,14 +1168,18 @@ async def update_nowplaying(guild):
 				# 	await info[guild]["thumbnail"].edit(embed = embeds[1])
 				# 	await info[guild]["button_holder"].edit(embed = embeds[3], view = embeds[2])
 
-			elif (not await check_if_song_ended(guild)):
-				print("refetching video info...")
-				try:
-					find_video_info(info[guild]["queue"][0], only_source = True)
-					await play_url(guild, info[guild]["queue"][0])
-					print("refetching was successful")
-				except Exception as e:
-					print(repr(e))
+			else:
+				ended = await check_if_song_ended(guild)
+				if (not ended) and (not info[guild].get("refetch_tried", False)):
+					print("refetching video info...")
+					try:
+						if find_video_info(info[guild]["queue"][0], only_source = True, refetch = True):
+							await play_url(guild, info[guild]["queue"][0])
+							print("refetching was successful")
+					except Exception as e:
+						print(repr(e))
+					finally:
+						info[guild]["refetch_tried"] = True
 
 		info[guild]["nowplaying_edits"] += 1
 		if (info[guild]["nowplaying_edits"] > 300):
@@ -1077,38 +1196,71 @@ async def update_nowplaying(guild):
 			info[guild]["button_holder"] = await info[guild]["channel"].send(embed = embeds[3], view = embeds[2])
 
 	except Exception as e:
-		print("update failed")
-		print(repr(e))
+		print("--- UPDATE LOOP CRASHED ---")
+		import traceback
+		traceback.print_exc() # Prints the specific line number and error
 
 async def play_next(guild):
-	current_url = info[guild]["queue"][0]
-	info[guild]["past queue"].append(current_url)
-	if (not info[guild]["looping"]):
-		del info[guild]["queue"][0]
+    current_url = info[guild]["queue"][0]
+    info[guild]["past queue"].append(current_url)
+    if (not info[guild]["looping"]):
+        del info[guild]["queue"][0]
 
-	if (len(info[guild]["queue"]) > 0):
-		await play_url(guild, info[guild]["queue"][0])
-	elif (info[guild]["autoplay"]):
-		vid = info[guild]["recomended_vid"]
-		info[guild]["recomended_vid"] = None
-		info[guild]["nowplaying_buffer"] = True
-		await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = vid)
+    if (len(info[guild]["queue"]) > 0):
+        await play_url(guild, info[guild]["queue"][0])
+    elif (info[guild]["autoplay"]):
+        # Safe get
+        vid = info[guild].get("recomended_vid")
+        
+        # --- FIX: EXACT COPY OF QUEUE END LOGIC ---
+        if vid is None:
+            if info[guild]["voice"].is_connected():
+                await info[guild]["voice"].disconnect()
+            
+            info[guild]["task"].cancel()
 
-	embeds = nowplaying_embed(guild, info[guild]["queue"][0])
-	await info[guild]["thumbnail"].edit(embed = embeds[1])
-	await info[guild]["button_holder"].edit(embed = embeds[3])
-	
-	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
-	watch_prsnt = time_since_start.seconds * (1 / video_info[current_url]["secs_length"])
-	watch_prsnt = round(watch_prsnt, 2)
+            # EXACT same embed structure as check_if_song_ended
+            embed = discord.Embed(
+                title = language[server_config[guild]["lang_set"]]["embed field"]["queue_end"].title(),
+                description = "", 
+                color = snoo_color,
+            )
+            embed.set_author(
+                name = title_format.format(
+                    language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].title()
+                ),
+                icon_url = music_icon,
+            )
+            await info[guild]["channel"].send(embed = embed)
 
-	for user in get_users_in_vc(True)[guild]:
-		if (guild not in song_history or user not in song_history[guild]):
-			song_history[guild][user] = [{current_url: [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]}]
-		elif (current_url not in song_history[guild][user][-1]):
-			song_history[guild][user][-1][current_url] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
-		else:
-			song_history[guild][user][-1][current_url].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
+            info[guild]["queue"].clear()
+            return
+        # --- END FIX ---
+
+        info[guild]["recomended_vid"] = None
+        info[guild]["nowplaying_buffer"] = True
+        await play_sys(discord.Object(id = guild), info[guild]["channel"], autoplay = vid)
+
+    # Everything below here runs only if music is still playing
+    embeds = nowplaying_embed(guild, info[guild]["queue"][0])
+    await info[guild]["thumbnail"].edit(embed = embeds[1])
+    await info[guild]["button_holder"].edit(embed = embeds[3])
+    
+    time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+    length = video_info[current_url].get("secs_length", 0)
+    
+    if length > 0:
+        watch_prsnt = round(time_since_start.seconds * (1 / length), 2)
+    else:
+        watch_prsnt = 0.0
+
+    for user in get_users_in_vc(True)[guild]:
+        if (guild not in song_history or user not in song_history[guild]):
+            song_history[guild][user] = [{current_url: [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]}]
+        elif (current_url not in song_history[guild][user][-1]):
+            song_history[guild][user][-1][current_url] = [{"retention": watch_prsnt, "listen_time": time_since_start.seconds}]
+        else:
+            song_history[guild][user][-1][current_url].append({"retention": watch_prsnt, "listen_time": time_since_start.seconds})
 
 # @snoo.command()
 # async def queue(ctx):
@@ -1302,20 +1454,47 @@ async def like_button(interaction):
 	await interaction.response.edit_message(embed = embeds[3], view = embeds[2])
 
 async def check_if_song_ended(guild):
+	"""Return True if we consider the current song finished, False otherwise.
+	We are defensive about missing/zero duration so we don't spam join/leave.
+	"""
 	verify_settings(guild)
-	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
-	if (time_since_start.seconds + 1 < video_info[info[guild]["queue"][0]]["secs_length"]):
-		return False
+	# If for some reason there's no queue, treat as ended.
+	if guild not in info or len(info[guild]["queue"]) == 0:
+		return True
 
+	current_id = info[guild]["queue"][0]
+	length = video_info.get(current_id, {}).get("secs_length", 0)
+	time_since_start = datetime.datetime.now() - info[guild]["start_time"]
+
+	# If we don't know the length (<= 0), don't auto-disconnect immediately.
+	# Give it at least 5 seconds before we treat it as ended to avoid join/leave loops.
+	if length <= 0:
+		if time_since_start.total_seconds() < 5:
+			return False
+	else:
+		# Normal case: if we've not yet reached the end, it's not finished.
+		if (time_since_start.total_seconds() + 1) < length:
+			return False
+
+	# At this point we consider the track finished.
 	if (len(info[guild]["queue"]) > 1 or info[guild]["looping"] or info[guild]["autoplay"]):
 		await play_next(guild)
 	else:
 		await info[guild]["voice"].disconnect()
 		info[guild]["task"].cancel()
 
-		embed=discord.Embed(title = language[server_config[guild]["lang_set"]]["ui"]["field"]["queue_end"].title(), description = "", color=snoo_color)
-		embed.set_author(name = title_format.format(language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].title()), icon_url=music_icon)
-		await info[guild]["channel"].send(embed=embed)
+		embed = discord.Embed(
+			title = language[server_config[guild]["lang_set"]]["embed field"]["queue_end"].title(),
+			description = "",
+			color = snoo_color,
+		)
+		embed.set_author(
+			name = title_format.format(
+				language[server_config[guild]["lang_set"]]["ui"]["title"]["queue_end"].title()
+			),
+			icon_url = music_icon,
+		)
+		await info[guild]["channel"].send(embed = embed)
 
 		info[guild]["queue"].clear()
 	return True
@@ -1517,18 +1696,19 @@ async def history(ctx):
 	else:
 		await ctx.send(admin_command_message)
 
-def get_users_in_vc(exclude_snoo = False):
+def get_users_in_vc(exclude_snoo: bool = False):
 	users_in_vc = {}
 
 	for guild in snoo.guilds:
 		for vc in guild.voice_channels:
-			if (len(vc.members) > 0):
-				users_in_vc[guild.id] = []
+			if len(vc.members) > 0:
+				if guild.id not in users_in_vc:
+					users_in_vc[guild.id] = []
 				for member in vc.members:
-					if (exclude_snoo and member == snoo.user):
+					if exclude_snoo and snoo.user is not None and member.id == snoo.user.id:
 						continue
 					users_in_vc[guild.id].append(member.id)
-	
+
 	return users_in_vc
 
 def verify_settings(guild):
@@ -1536,8 +1716,15 @@ def verify_settings(guild):
 		server_config[guild] = deepcopy(default_settings)
 
 def verify_data(guild, user):
-	if (guild not in profile_data or user not in profile_data[guild]):
-		profile_data[guild][user] = {"messages": [0], "vc_time": [0], "friendship": [0], "karma": [0]}
+	if guild not in profile_data:
+		profile_data[guild] = {}
+	if user not in profile_data[guild]:
+		profile_data[guild][user] = {
+			"messages": [0],
+			"vc_time": [0],
+			"friendship": [0],
+			"karma": [0],
+		}
 
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
@@ -1564,20 +1751,10 @@ def add_entry():
 		for user in song_history[server]:
 			song_history[server][user].append({})
 
-def check_time():
-	Timer(60, check_time).start()
-
-	now = datetime.datetime.now()
-	current_time = now.strftime("%H:%M")
-
-	if (current_time == "05:00"):
-		add_entry()
-
 @snoo.command()
 async def save(ctx):
-	if (ctx.message.author.id == admin):
+	if ctx.message.author.id == admin:
 		await new_save()
-
 		await ctx.message.add_reaction("✅")
 	else:
 		await ctx.send(admin_command_message)
@@ -1585,31 +1762,46 @@ async def save(ctx):
 async def upload_file(channel_id, name, file):
 	channel = snoo.get_channel(channel_id)
 	json_object = json.dumps(file)
-	with open(f"Data Files/{name}.json", "w") as outfile:
+	os.makedirs("Data Files", exist_ok=True)
+	with open(f"Data Files/{name}.json", "w", encoding="utf-8") as outfile:
 		outfile.write(json_object)
 	await channel.send(file=discord.File(f"Data Files/{name}.json"))
 
 async def new_save():
-	time = datetime.datetime.now()
+	start_time = datetime.datetime.now()
 
 	users_in_vc = get_users_in_vc()
 	for server in users_in_vc:
 		for user in users_in_vc[server]:
 			verify_data(server, user)
-			profile_data[server][user]["vc_time"][-1] = round(profile_data[server][user]["vc_time"][-1] + 0.1, 1)
+			profile_data[server][user]["vc_time"][-1] = round(
+				profile_data[server][user]["vc_time"][-1] + 0.1, 1
+			)
 
 	await upload_file(977316868253708359, "profile", profile_data)
 	await upload_file(913524223870398534, "channel_messages", channel_messages)
 	await upload_file(985597229022724136, "server_config", server_config)
 	await upload_file(922592622248341505, "song_history", song_history)
+
 	save_info = deepcopy(video_info)
-	for vid in save_info:
-		if "source" in vid:
-			vid.pop("source")
+	for vid_id, info_dict in list(save_info.items()):
+		if isinstance(info_dict, dict) and "source" in info_dict:
+			info_dict.pop("source")
+
 	await upload_file(993332319454760960, "video_info", save_info)
 	await upload_file(999117002323001354, "playlists", playlists)
 
-	print("saved in " + str(round((datetime.datetime.now() - time).total_seconds() * 1000)) + "ms")
+	print("saved in " + str(round((datetime.datetime.now() - start_time).total_seconds() * 1000)) + "ms")
+
+@tasks.loop(minutes=1)
+async def daily_entry_check():
+	now = datetime.datetime.now().strftime("%H:%M")
+	if now == "05:00":
+		add_entry()
+
+@daily_entry_check.before_loop
+async def before_daily_entry_check():
+	await snoo.wait_until_ready()
 
 async def async_timer(interval, func, arg1 = None, arg2 = None, arg3 = None):
 	while True:
@@ -1624,7 +1816,6 @@ async def async_timer(interval, func, arg1 = None, arg2 = None, arg3 = None):
 
 # _________________________________________________________________ RUN _________________________________________________________________
 
-check_time()
 
 with open('Token/filekey.key', 'rb') as filekey:
 	key = filekey.read()

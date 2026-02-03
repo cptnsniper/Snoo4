@@ -111,6 +111,7 @@
             }
         }
     },
+
     "русский": {
         "flag": "🇷🇺",
         "settings_info": {
@@ -221,70 +222,7 @@
             }
         }
     },
-    "español": {
-        "flag": "🇪🇸",
-        "settings_info": {
-            "votes": "escoje si si o si no pone snoo votaciones",
-            "downvote": "escoje si pone snoo downvote en las publicaciones",
-            "slim nowplaying": "muestra / esconde vistas y fecha de subimiento en el video",
-            "large nowplaying thumbnail": "pone la foto de video en el estilo  dos-mensaje"
-        },
-        "error": {
-            "setting_not_found": "No pudimos encontrar la configuracion!",
-            "age_restricted": "perdone pero no puedo poner contenido 18+ porque aun no tengo 18!",
-            "nothing_found": "No pude encontrar lo que busco. Trata con algo mas",
-            "no_vc": "asegurate que estes en un chat de voz!",
-            "not_youtube": "Perdon pero el link no es de youtube! No lo puedo mostrar. ",
-            "no_content": "Perdon, no entendi.",
-            "can_not_skip": "esta es la ultima cancion en linea entonces no puedo saltarla!"
-        },
-        "notifs": {
-            "loop_start": "tocare la cancion infinitamente!",
-            "loop_stop": "ya no tocare la cancion infinitamente!",
-            "autoplay_start": "tratare de poner  videos interesantes despues de que acabe este!",
-            "autoplay_stop": "ya no pondre videos automaticamente!",
-            "searching": "buscando a `{}`"
-        },
-        "ui": {
-            "title": {
-                "settings": "configuraciones",
-                "poll": "eleccion",
-                "profile": "el perfil de {}",
-                "nowplaying": "tocando",
-                "stopped": "terminado",
-                "queue": "cola",
-                "queue_end": "cola terminada",
-                "queued": "añadido a la cola"
-            },
-            "field": {
-                "option": "opcion",
-                "karma": {
-                    "title": "karma",
-                    "desc": "ganado {} upvotes"
-                },
-                "friendship": {
-                    "title": "amistad",
-                    "desc": "dado {} karma a los de mas"
-                },
-                "messages": {
-                    "title": "mensajes",
-                    "desc": "enviado {} mensajes"
-                },
-                "vc_hours": {
-                    "title": "horas en chat de voz",
-                    "desc": "tardado {} horas en chat de voz"
-                },
-                "views": "vistas",
-                "upload_date": "fecha de subimiento",
-                "stopped": "que tenga buen dia!",
-                "queue_end": "pon algo nuevo!",
-                "queue_footer": {
-                    "full": "y {} de los de mas, tiempo de cola en total: {}",
-                    "short": "tiempo de cola en total: {}"
-                }
-            }
-        }
-    },
+
     "日本語": {
         "flag": "🇯🇵",
         "settings_info": {
@@ -392,6 +330,394 @@
                     "billion": "B"
                 },
                 "select_language": "言語を変える"
+            }
+        }
+    },
+
+    "français": {
+        "flag": "🇫🇷",
+        "settings_info": {
+            "votes": "choisir si Snoo ajoute des votes positifs aux posts",
+            "downvote": "choisir si Snoo ajoute des votes négatifs aux posts",
+            "slim nowplaying": "affiche / masque les vues et la date de mise en ligne",
+            "large nowplaying thumbnail": "affiche la miniature nowplaying en version large",
+            "language": "la langue parlée par Snoo"
+        },
+        "setting_names": {
+            "language": "langue",
+            "votes": "j’aime",
+            "downvote": "je n’aime pas"
+        },
+        "error": {
+            "setting_not_found": "paramètre introuvable !",
+            "age_restricted": "désolé, je ne peux pas lire du contenu 18+ : je n’ai que 2 ans !",
+            "nothing_found": "je n’ai rien trouvé. Essaie autre chose ?",
+            "no_vc": "assure-toi d’être dans un salon vocal !",
+            "not_youtube": "ce n’est pas un lien YouTube valide !",
+            "no_content": "je ne peux pas comprendre ce message.",
+            "can_not_skip": "c’est la dernière musique de la file.",
+            "can_not_back": "c’est la première musique de la file.",
+            "no_url": "tu n’as pas fourni de lien.",
+            "extract": "je ne peux pas extraire ce lien.",
+            "no_queue": "la file est vide !",
+            "play_error": "une erreur est survenue pendant la lecture."
+        },
+        "notifs": {
+            "loop_start": "je boucle maintenant la musique actuelle !",
+            "loop_stop": "je ne boucle plus la musique !",
+            "autoplay_start": "je choisirai une vidéo pertinente à jouer ensuite !",
+            "autoplay_stop": "je n’autolirai plus de vidéos !",
+            "searching": "recherche de `{}`",
+            "skip": "{} a passé la musique !",
+            "back": "{} est revenu en arrière !",
+            "shuffle": "j’ai mélangé la file !",
+            "unshuffle": "j’ai remis la file en ordre !"
+        },
+        "ui": {
+            "title": {
+                "settings": "paramètres",
+                "poll": "sondage",
+                "profile": "profil de {}",
+                "nowplaying": "en lecture",
+                "stopped": "arrêté",
+                "queue": "file",
+                "queue_end": "fin de la file",
+                "queued": "ajouté à la file",
+                "playlist": "playlist"
+            },
+            "field": {
+                "option": "option",
+                "karma": {
+                    "title": "karma",
+                    "desc": "a reçu **{}** votes"
+                },
+                "friendship": {
+                    "title": "amitié",
+                    "desc": "a donné **{}** karma"
+                },
+                "messages": {
+                    "title": "messages",
+                    "desc": "a envoyé **{}** messages"
+                },
+                "vc_hours": {
+                    "title": "heures vocales",
+                    "desc": "a passé **{}** heures en vocal"
+                },
+                "views": "vues",
+                "upload_date": "mise en ligne",
+                "stopped": "bonne journée !",
+                "queue_end": "ajoute quelque chose !",
+                "queue_footer": {
+                    "full": "et {} autres, durée totale : {}",
+                    "short": "durée totale : {}"
+                },
+                "next_up": "à suivre",
+                "duration": "durée",
+                "autoplay": "auto-lecture",
+                "time_delta": {
+                    "year": { "singular": "il y a un an", "plural": "il y a {} ans" },
+                    "month": { "singular": "il y a un mois", "plural": "il y a {} mois" },
+                    "day": { "singular": "hier", "plural": "il y a {} jours" },
+                    "hour": { "singular": "il y a une heure", "plural": "il y a {} heures" },
+                    "minute": { "singular": "il y a une minute", "plural": "il y a {} minutes", "less_then": "il y a moins d’une minute" }
+                },
+                "number_multiplier": {
+                    "thousand": "k",
+                    "million": "M",
+                    "billion": "Md"
+                },
+                "select_language": "changer de langue"
+            }
+        }
+    },
+
+    "deutsch": {
+        "flag": "🇩🇪",
+        "settings_info": {
+            "votes": "wählen, ob Snoo Beiträge positiv bewertet",
+            "downvote": "wählen, ob Snoo Beiträge negativ bewertet",
+            "slim nowplaying": "zeigt / versteckt Aufrufe und Upload-Datum",
+            "large nowplaying thumbnail": "setzt die große Now-Playing-Vorschau",
+            "language": "die Sprache, die Snoo spricht"
+        },
+        "setting_names": {
+            "language": "Sprache",
+            "votes": "Gefällt mir",
+            "downvote": "Gefällt mir nicht"
+        },
+        "error": {
+            "setting_not_found": "Einstellung nicht gefunden!",
+            "age_restricted": "Sorry, ich darf keine 18+ Inhalte abspielen. Ich bin erst 2!",
+            "nothing_found": "Nichts gefunden. Versuch etwas anderes?",
+            "no_vc": "Bitte zuerst einem Sprachkanal beitreten!",
+            "not_youtube": "Das ist kein gültiger YouTube-Link!",
+            "no_content": "Ich konnte den Inhalt der Nachricht nicht verstehen.",
+            "can_not_skip": "Letzter Song in der Warteschlange!",
+            "can_not_back": "Erster Song in der Warteschlange!",
+            "no_url": "Kein Link angegeben.",
+            "extract": "Konnte den Link nicht extrahieren.",
+            "no_queue": "Warteschlange ist leer!",
+            "play_error": "Beim Abspielen ist ein Fehler aufgetreten!"
+        },
+        "notifs": {
+            "loop_start": "Ich wiederhole nun den aktuellen Song!",
+            "loop_stop": "Ich wiederhole nicht mehr!",
+            "autoplay_start": "Ich suche passende Videos für danach!",
+            "autoplay_stop": "Ich spiele nicht mehr automatisch ab!",
+            "searching": "suche `{}`",
+            "skip": "{} hat den Song übersprungen!",
+            "back": "{} ist zum vorherigen Song zurückgegangen!",
+            "shuffle": "Ich habe die Warteschlange gemischt!",
+            "unshuffle": "Ich habe die Warteschlange sortiert!"
+        },
+        "ui": {
+            "title": {
+                "settings": "Einstellungen",
+                "poll": "Umfrage",
+                "profile": "{}'s Profil",
+                "nowplaying": "läuft gerade",
+                "stopped": "gestoppt",
+                "queue": "Warteschlange",
+                "queue_end": "Ende der Warteschlange",
+                "queued": "hinzugefügt",
+                "playlist": "Playlist"
+            },
+            "field": {
+                "option": "Option",
+                "karma": {
+                    "title": "Karma",
+                    "desc": "**{}** Upvotes erhalten"
+                },
+                "friendship": {
+                    "title": "Freundschaft",
+                    "desc": "**{}** Karma verteilt"
+                },
+                "messages": {
+                    "title": "Nachrichten",
+                    "desc": "**{}** Nachrichten gesendet"
+                },
+                "vc_hours": {
+                    "title": "VC-Stunden",
+                    "desc": "**{}** Stunden im Voicechat verbracht"
+                },
+                "views": "Aufrufe",
+                "upload_date": "Upload-Datum",
+                "stopped": "Schönen Tag noch!",
+                "queue_end": "Spiel etwas Neues!",
+                "queue_footer": {
+                    "full": "und {} weitere, Gesamtzeit: {}",
+                    "short": "Gesamtzeit: {}"
+                },
+                "next_up": "als Nächstes",
+                "duration": "Dauer",
+                "autoplay": "Autoplay",
+                "time_delta": {
+                    "year": { "singular": "vor einem Jahr", "plural": "vor {} Jahren" },
+                    "month": { "singular": "vor einem Monat", "plural": "vor {} Monaten" },
+                    "day": { "singular": "gestern", "plural": "vor {} Tagen" },
+                    "hour": { "singular": "vor einer Stunde", "plural": "vor {} Stunden" },
+                    "minute": { "singular": "vor einer Minute", "plural": "vor {} Minuten", "less_then": "vor weniger als einer Minute" }
+                },
+                "number_multiplier": {
+                    "thousand": "K",
+                    "million": "M",
+                    "billion": "B"
+                },
+                "select_language": "Sprache ändern"
+            }
+        }
+    },
+
+    "中文（简体）": {
+        "flag": "🇨🇳",
+        "settings_info": {
+            "votes": "选择 Snoo 是否给帖子点赞",
+            "downvote": "选择 Snoo 是否给帖子点踩",
+            "slim nowplaying": "显示 / 隐藏播放界面的观看数和上传日期",
+            "large nowplaying thumbnail": "使用更大的播放缩略图样式",
+            "language": "Snoo 使用的语言"
+        },
+        "setting_names": {
+            "language": "语言",
+            "votes": "点赞",
+            "downvote": "点踩"
+        },
+        "error": {
+            "setting_not_found": "未找到该设置！",
+            "age_restricted": "抱歉，我不能播放 18+ 内容，我才 2 岁！",
+            "nothing_found": "没有找到任何结果。试试别的？",
+            "no_vc": "请先加入语音频道！",
+            "not_youtube": "这不是 YouTube 链接，我无法播放！",
+            "no_content": "抱歉，我无法理解这条消息的内容。",
+            "can_not_skip": "这是队列中的最后一首歌，没有下一首！",
+            "can_not_back": "这是队列中的第一首歌，没有上一首！",
+            "no_url": "你没有提供链接，我也没有在播放任何内容。",
+            "extract": "无法解析这个链接，请确认是有效的 YouTube 链接。",
+            "no_queue": "队列为空！",
+            "play_error": "播放时出现错误！"
+        },
+        "notifs": {
+            "loop_start": "我现在会循环播放这首歌！",
+            "loop_stop": "我将停止循环播放！",
+            "autoplay_start": "我会自动选择下一首相关视频！",
+            "autoplay_stop": "我将不再自动播放！",
+            "searching": "正在搜索 `{}`",
+            "skip": "{} 已跳过当前歌曲！",
+            "back": "{} 已返回上一首！",
+            "shuffle": "已随机排序队列！",
+            "unshuffle": "已恢复原排序！"
+        },
+        "ui": {
+            "title": {
+                "settings": "设置",
+                "poll": "投票",
+                "profile": "{} 的资料",
+                "nowplaying": "正在播放",
+                "stopped": "已停止",
+                "queue": "队列",
+                "queue_end": "队列结束",
+                "queued": "已加入队列",
+                "playlist": "播放列表"
+            },
+            "field": {
+                "option": "选项",
+                "karma": {
+                    "title": "业力值",
+                    "desc": "获得了 **{}** 点赞"
+                },
+                "friendship": {
+                    "title": "友情",
+                    "desc": "给其他人点了 **{}** 点赞"
+                },
+                "messages": {
+                    "title": "消息",
+                    "desc": "发送了 **{}** 条消息"
+                },
+                "vc_hours": {
+                    "title": "语音时长",
+                    "desc": "在语音频道中待了 **{}** 小时"
+                },
+                "views": "观看数",
+                "upload_date": "上传日期",
+                "stopped": "祝你今天愉快！",
+                "queue_end": "播放点新的吧！",
+                "queue_footer": {
+                    "full": "以及其他 {} 首，总时长：{}",
+                    "short": "总时长：{}"
+                },
+                "next_up": "下一首",
+                "duration": "时长",
+                "autoplay": "自动播放",
+                "time_delta": {
+                    "year": { "singular": "一年前", "plural": "{} 年前" },
+                    "month": { "singular": "上个月", "plural": "{} 个月前" },
+                    "day": { "singular": "昨天", "plural": "{} 天前" },
+                    "hour": { "singular": "一小时前", "plural": "{} 小时前" },
+                    "minute": { "singular": "一分钟前", "plural": "{} 分钟前", "less_then": "不到一分钟前" }
+                },
+                "number_multiplier": {
+                    "thousand": "千",
+                    "million": "百万",
+                    "billion": "十亿"
+                },
+                "select_language": "切换语言"
+            }
+        }
+    },
+
+    "español": {
+        "flag": "🇪🇸",
+        "settings_info": {
+            "votes": "elige si Snoo pone votos positivos en las publicaciones",
+            "downvote": "elige si Snoo pone votos negativos en las publicaciones",
+            "slim nowplaying": "muestra / oculta vistas y fecha de subida",
+            "large nowplaying thumbnail": "usa la miniatura grande del estilo de dos mensajes",
+            "language": "el idioma que habla Snoo"
+        },
+        "setting_names": {
+            "language": "idioma",
+            "votes": "me gusta",
+            "downvote": "no me gusta"
+        },
+        "error": {
+            "setting_not_found": "¡No se encontró la configuración!",
+            "age_restricted": "Perdón, no puedo reproducir contenido 18+ porque solo tengo 2 años.",
+            "nothing_found": "No pude encontrar nada. ¿Intentas con otra cosa?",
+            "no_vc": "¡Asegúrate de estar en un canal de voz!",
+            "not_youtube": "Ese no es un enlace de YouTube válido.",
+            "no_content": "No pude entender el contenido del mensaje.",
+            "can_not_skip": "Es la última canción en la cola.",
+            "can_not_back": "Es la primera canción en la cola.",
+            "no_url": "No proporcionaste un enlace.",
+            "extract": "No pude procesar ese enlace. ¿Seguro que es de YouTube?",
+            "no_queue": "¡La cola está vacía!",
+            "play_error": "Ocurrió un error al intentar reproducir ese video."
+        },
+        "notifs": {
+            "loop_start": "¡Repetiré la canción actual!",
+            "loop_stop": "Ya no repetiré la canción.",
+            "autoplay_start": "Elegiré un video relevante para seguir.",
+            "autoplay_stop": "Ya no reproduciré videos automáticamente.",
+            "searching": "buscando `{}`",
+            "skip": "{} ha saltado la canción actual.",
+            "back": "{} ha vuelto a la canción anterior.",
+            "shuffle": "He mezclado la cola.",
+            "unshuffle": "He restaurado el orden original."
+        },
+        "ui": {
+            "title": {
+                "settings": "configuración",
+                "poll": "encuesta",
+                "profile": "perfil de {}",
+                "nowplaying": "reproduciendo",
+                "stopped": "detenido",
+                "queue": "cola",
+                "queue_end": "cola terminada",
+                "queued": "añadido a la cola",
+                "playlist": "lista de reproducción"
+            },
+            "field": {
+                "option": "opción",
+                "karma": {
+                    "title": "karma",
+                    "desc": "ha recibido **{}** votos positivos"
+                },
+                "friendship": {
+                    "title": "amistad",
+                    "desc": "ha dado **{}** karma a otros"
+                },
+                "messages": {
+                    "title": "mensajes",
+                    "desc": "ha enviado **{}** mensajes"
+                },
+                "vc_hours": {
+                    "title": "horas de voz",
+                    "desc": "ha pasado **{}** horas en un chat de voz"
+                },
+                "views": "vistas",
+                "upload_date": "fecha de subida",
+                "stopped": "¡Que tengas un buen día!",
+                "queue_end": "¡Pon algo nuevo!",
+                "queue_footer": {
+                    "full": "y {} más, duración total de la cola: {}",
+                    "short": "duración total de la cola: {}"
+                },
+                "next_up": "siguiente",
+                "duration": "duración",
+                "autoplay": "autoplay",
+                "time_delta": {
+                    "year": { "singular": "hace un año", "plural": "hace {} años" },
+                    "month": { "singular": "hace un mes", "plural": "hace {} meses" },
+                    "day": { "singular": "ayer", "plural": "hace {} días" },
+                    "hour": { "singular": "hace una hora", "plural": "hace {} horas" },
+                    "minute": { "singular": "hace un minuto", "plural": "hace {} minutos", "less_then": "hace menos de un minuto" }
+                },
+                "number_multiplier": {
+                    "thousand": "k",
+                    "million": "M",
+                    "billion": "B"
+                },
+                "select_language": "cambiar idioma"
             }
         }
     }
